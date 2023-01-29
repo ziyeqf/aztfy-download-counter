@@ -38,8 +38,8 @@ func SaveToKusto(ctx context.Context, kustoClient *kusto.Client, dbName string, 
 		ingest.IngestionMapping(mapping, ingest.JSON),
 		ingest.IfNotExists(ingestTag),
 		ingest.Tags(append([]string{}, ingestTag)),
-		//ingest.ReportResultToTable(), // it's not recommended to read status, but it's helpful for debug.
-		ingest.FlushImmediately(), // maybe it's not a good practice.
+		ingest.ReportResultToTable(), // it's not recommended to read status, but it's helpful for debug.
+		ingest.FlushImmediately(),    // maybe it's not a good practice.
 		ingest.DontCompress(),
 	)
 	if err != nil {
