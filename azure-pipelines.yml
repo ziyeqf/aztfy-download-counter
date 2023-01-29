@@ -3,8 +3,12 @@
 # Add steps that test, save build artifacts, deploy, and more:
 # https://docs.microsoft.com/azure/devops/pipelines/languages/go
 
-trigger:
-- main
+schedules:
+- cron: "0 0 * * *"
+  displayName: Daily collect data
+  branches:
+    include:
+    - main
 
 pool:
   vmImage: ubuntu-latest
@@ -14,11 +18,6 @@ variables:
   GOROOT: '/usr/local/go1.11' # Go installation path
   GOPATH: '$(system.defaultWorkingDirectory)/gopath' # Go workspace path
   modulePath: '$(GOPATH)/src/github.com/$(build.repository.name)' # Path to the module's code
-
-  ARM_CLIENT_ID: $(ARM_CLIENT_ID)
-  ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
-  ARM_TENANT_ID: $(ARM_TENANT_ID)
-  KUSTO_CLUSTER_URI: $(KUSTO_CLUSTER_URI)
 
 steps:
 - script: |
