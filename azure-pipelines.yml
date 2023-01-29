@@ -1,0 +1,55 @@
+schedules:
+- cron: "0 0 * * *"
+  displayName: Daily Run
+  branches:
+    include:
+    - main
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  GOBIN:  '$(GOPATH)/bin' # Go binaries path
+  GOROOT: '/usr/local/go1.11' # Go installation path
+  GOPATH: '$(system.defaultWorkingDirectory)/gopath' # Go workspace path
+  modulePath: '$(GOPATH)/src/github.com/$(build.repository.name)' # Path to the module's code
+
+steps:
+- task: GoTool@0
+  displayName: "install Go"
+  inputs:
+    version: '1.19'
+    goPath: '$(GOPATH)'
+    goBin: '$(GOPATH)/bin'
+
+- script: |
+    mkdir -p '$(GOBIN)'
+    mkdir -p '$(GOPATH)/pkg'
+    mkdir -p '$(modulePath)'
+    shopt -s extglob
+    shopt -s dotglob
+    mv !(gopath) '$(modulePath)'
+    echo '##vso[task.prependpath]$(GOBIN)'
+    echo '##vso[task.prependpath]$(GOROOT)/bin'
+  displayName: 'Set up the Go workspace'
+
+
+- script: |
+    go version
+    go get -v -t -d ./...
+    if [ -f Gopkg.toml ]; then
+        curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+        dep ensure
+    fi
+    go build .
+  workingDirectory: '$(modulePath)'
+  displayName: 'Get dependencies and build'
+
+- script: |
+    ./aztfy-download-counter
+  workingDirectory: '$(modulePath)'
+  displayName: 'Gather data and upload'
+  env:  
+    ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+    ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+    ARM_TENANT_ID: $(ARM_TENANT_ID)
+    KUSTO_CLUSTER_URI: $(KUSTO_CLUSTER_URI)
