@@ -13,7 +13,7 @@ import (
 
 func FetchGitHubDownloadCount(ctx context.Context) ([]interface{}, error) {
 	output := make([]interface{}, 0)
-	releases, err := FetchReleaseList(ctx, 1, 10)
+	releases, err := FetchReleaseList(ctx, 1, 5)
 	if err != nil {
 		return output, err
 	}
