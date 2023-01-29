@@ -39,6 +39,6 @@ steps:
         curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
         dep ensure
     fi
-    go run counter.go
+    go run ./counter.go
   workingDirectory: '$(modulePath)'
   displayName: 'Run script'
