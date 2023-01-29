@@ -3,8 +3,10 @@ package kustohelper
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
+	"time"
 
 	"github.com/Azure/azure-kusto-go/kusto"
 	"github.com/Azure/azure-kusto-go/kusto/ingest"
@@ -17,7 +19,7 @@ func AuthKusto(clusterUri string, clientId string, clientSecret string, tenantId
 	return client, err
 }
 
-func SaveToKusto(ctx context.Context, kustoClient *kusto.Client, dbName string, tableName string, mapping string, versions interface{}) (chan error, error) {
+func SaveToKusto(ctx context.Context, kustoClient *kusto.Client, dbName string, tableName string, mapping string, versions []interface{}) (chan error, error) {
 	reader, encodeFunc := VersionEncode(versions)
 	go encodeFunc()
 
@@ -28,16 +30,16 @@ func SaveToKusto(ctx context.Context, kustoClient *kusto.Client, dbName string, 
 
 	defer in.Close()
 
-	//ingestDate := time.Now().Format("2006-01-02")
-	//ingestTag := fmt.Sprintf(`["%s"]`, ingestDate)
+	ingestDate := time.Now().Format("2006-01-02")
+	ingestTag := fmt.Sprintf(`["%s"]`, ingestDate)
 	//save with tag will cause long time pending.
 
 	result, err := in.FromReader(ctx, reader,
 		ingest.IngestionMapping(mapping, ingest.JSON),
-		//ingest.IfNotExists(ingestTag),
-		//ingest.Tags(append([]string{}, ingestTag)),
-		ingest.ReportResultToTable(), // it's not recommended to read status, but
-		//ingest.FlushImmediately(),    // it's worrying it maybe not a good practice to use this flag. only for test for now.
+		ingest.IfNotExists(ingestTag),
+		ingest.Tags(append([]string{}, ingestTag)),
+		//ingest.ReportResultToTable(), // it's not recommended to read status, but it's helpful for debug.
+		ingest.FlushImmediately(), // maybe it's not a good practice.
 		ingest.DontCompress(),
 	)
 	if err != nil {
@@ -47,7 +49,7 @@ func SaveToKusto(ctx context.Context, kustoClient *kusto.Client, dbName string, 
 	return result.Wait(ctx), nil
 }
 
-func VersionEncode(data interface{}) (*io.PipeReader, func()) {
+func VersionEncode(data []interface{}) (*io.PipeReader, func()) {
 	r, w := io.Pipe()
 	enc := json.NewEncoder(w)
 
@@ -58,8 +60,11 @@ func VersionEncode(data interface{}) (*io.PipeReader, func()) {
 				log.Println(err)
 			}
 		}(w)
-		if err := enc.Encode(data); err != nil {
-			log.Fatal(err)
+		for _, d := range data {
+			if err := enc.Encode(d); err != nil {
+				log.Fatal(err)
+			}
 		}
+
 	}
 }

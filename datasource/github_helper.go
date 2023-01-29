@@ -11,9 +11,9 @@ import (
 	"github.com/google/go-github/v50/github"
 )
 
-func FetchGitHubDownloadCount(ctx context.Context) ([]GithubVersion, error) {
-	output := make([]GithubVersion, 0)
-	releases, err := FetchReleaseList(ctx, 1, 10)
+func FetchGitHubDownloadCount(ctx context.Context) ([]interface{}, error) {
+	output := make([]interface{}, 0)
+	releases, err := FetchReleaseList(ctx, 1, 5)
 	if err != nil {
 		return output, err
 	}

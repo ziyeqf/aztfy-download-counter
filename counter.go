@@ -14,7 +14,7 @@ import (
 const dbName = "aztfyDownloadCount"
 const ghTable = "Github"
 const hbRawTable = "HomebrewRaw"
-const hbTable = "HomeBrew"
+const hbTable = "Homebrew"
 
 func main() {
 	ctx := context.TODO()
@@ -68,7 +68,8 @@ func main() {
 			requireNewBasicCount = true
 		}
 
-		for _, hb := range hbResp {
+		for _, hbRaw := range hbResp {
+			hb := hbRaw.(datasource.HomeBrewVersion)
 			if hb.OsType != osType {
 				continue
 			}
