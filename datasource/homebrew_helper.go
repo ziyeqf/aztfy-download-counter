@@ -29,8 +29,8 @@ type installCount struct {
 	Aztfy int `json:"aztfy"`
 }
 
-func FetchHomeBrewDownloadCount() ([]HomeBrewVersion, error) {
-	output := make([]HomeBrewVersion, 0)
+func FetchHomeBrewDownloadCount() ([]interface{}, error) {
+	output := make([]interface{}, 0)
 
 	brewJson, err := requestHomeBrewSource()
 	if err != nil {

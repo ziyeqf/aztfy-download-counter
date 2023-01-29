@@ -68,7 +68,8 @@ func main() {
 			requireNewBasicCount = true
 		}
 
-		for _, hb := range hbResp {
+		for _, hbRaw := range hbResp {
+			hb := hbRaw.(datasource.HomeBrewVersion)
 			if hb.OsType != osType {
 				continue
 			}
