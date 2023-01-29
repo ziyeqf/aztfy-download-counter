@@ -65,6 +65,8 @@ func parseTagName(tagName string, contentType string) (version string, osType Os
 		return parseTagNameForZip(tagName)
 	case "application/x-msdownload":
 		return parseTagNameForMsi(tagName)
+	case "application/gzip":
+		return parseTagNameForGz(tagName)
 	default:
 		return "", "", "", fmt.Errorf("parse failed")
 	}
@@ -86,4 +88,13 @@ func parseTagNameForMsi(tagName string) (version string, osType OsType, arch str
 		return "", "", "", fmt.Errorf("parse failed")
 	}
 	return result[1], OsTypeWindows, result[2], nil
+}
+
+func parseTagNameForGz(tagName string) (version string, osType OsType, arch string, err error) {
+	reg := regexp.MustCompile(`(?mU)aztfy_(v{0,1}\d\.\d\.\d)_(.+)\_(.+)\.tar\.gz`)
+	result := reg.FindStringSubmatch(tagName)
+	if len(result) != 4 {
+		return "", "", "", fmt.Errorf("parse failed")
+	}
+	return result[1], OsType(strings.ToLower(result[2])), result[3], nil
 }
