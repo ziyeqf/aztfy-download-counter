@@ -3,10 +3,8 @@ package kustohelper
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
-	"time"
 
 	"github.com/Azure/azure-kusto-go/kusto"
 	"github.com/Azure/azure-kusto-go/kusto/ingest"
@@ -30,17 +28,16 @@ func SaveToKusto(ctx context.Context, kustoClient *kusto.Client, dbName string, 
 
 	defer in.Close()
 
-	ingestDate := time.Now().Format("2006-01-02")
-	ingestTag := fmt.Sprintf(`["%s"]`, ingestDate)
-	//save with tag will cause long time pending.
+	//ingestDate := time.Now().Format("2006-01-02")
+	//ingestTag := fmt.Sprintf(`["%s"]`, ingestDate)
+	//save with tag will cause extremely long time pending.
 
 	result, err := in.FromReader(ctx, reader,
 		ingest.IngestionMapping(mapping, ingest.JSON),
-		ingest.IfNotExists(ingestTag),
-		ingest.Tags(append([]string{}, ingestTag)),
+		//ingest.IfNotExists(ingestTag),
+		//ingest.Tags(append([]string{}, ingestTag)),
 		ingest.ReportResultToTable(), // it's not recommended to read status, but it's helpful for debug.
-		ingest.FlushImmediately(),    // maybe it's not a good practice.
-		ingest.DontCompress(),
+		//ingest.FlushImmediately(), // maybe it's not a good practice.
 	)
 	if err != nil {
 		return nil, err
