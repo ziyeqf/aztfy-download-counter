@@ -39,7 +39,7 @@ func FetchHomeBrewDownloadCount() ([]interface{}, error) {
 
 	for _, osType := range []OsType{OsTypeDarwin, OsTypeLinux} {
 		for _, dataType := range []homeBrewDataType{ThirtyDays, NinetyDays, OneYear} {
-			output = append(output, generateHomeBrewVersion(brewJson.Analytics.Install, osType, dataType))
+			output = append(output, generateHomeBrewVersion(*brewJson, osType, dataType))
 		}
 	}
 
@@ -68,7 +68,14 @@ func requestHomeBrewSource() (*BrewJson, error) {
 	return &brewJson, err
 }
 
-func generateHomeBrewVersion(input install, osType OsType, dataType homeBrewDataType) HomeBrewVersion {
+func generateHomeBrewVersion(input BrewJson, osType OsType, dataType homeBrewDataType) HomeBrewVersion {
+	var i install
+	if osType == OsTypeDarwin {
+		i = input.Analytics.Install
+	} else {
+		i = input.AnalyticsLinux.Install
+	}
+
 	output := HomeBrewVersion{
 		OsType:    osType,
 		DataType:  dataType,
@@ -77,11 +84,11 @@ func generateHomeBrewVersion(input install, osType OsType, dataType homeBrewData
 
 	switch dataType {
 	case ThirtyDays:
-		output.DownloadCount = int32(input.ThirtyDays.Aztfy)
+		output.DownloadCount = int32(i.ThirtyDays.Aztfy)
 	case NinetyDays:
-		output.DownloadCount = int32(input.NinetyDays.Aztfy)
+		output.DownloadCount = int32(i.NinetyDays.Aztfy)
 	case OneYear:
-		output.DownloadCount = int32(input.OneYear.Aztfy)
+		output.DownloadCount = int32(i.OneYear.Aztfy)
 	}
 
 	return output
