@@ -5,19 +5,20 @@ import (
 	"time"
 )
 
-type homeBrewDataType string
+type HomeBrewDataType string
 
 const (
-	ThirtyDays homeBrewDataType = "30d"
-	NinetyDays homeBrewDataType = "90d"
-	OneYear    homeBrewDataType = "365d"
+	ThirtyDays HomeBrewDataType = "30d"
+	NinetyDays HomeBrewDataType = "90d"
+	OneYear    HomeBrewDataType = "365d"
 )
 
 type HomeBrewVersion struct {
-	OsType        OsType           `json:"OsType,omitempty"`
-	DownloadCount int32            `json:"DownloadCount,omitempty"`
-	CountDate     time.Time        `json:"CountDate,omitempty"`
-	DataType      homeBrewDataType `json:"DataType,omitempty"`
+	RunId         int32     `json:"RunId,omitempty"`
+	OsType        string    `json:"OsType,omitempty"`
+	DownloadCount int32     `json:"DownloadCount"`
+	CountDate     time.Time `json:"CountDate,omitempty"`
+	DataType      string    `json:"DataType,omitempty"`
 }
 
 func (h *HomeBrewVersion) MarshalJson() ([]byte, error) {
@@ -27,12 +28,14 @@ func (h *HomeBrewVersion) MarshalJson() ([]byte, error) {
 	}
 
 	return json.Marshal(&struct {
-		OsType        string           `json:"OsType,omitempty"`
-		DownloadCount int32            `json:"DownloadCount,omitempty"`
-		CountDate     time.Time        `json:"CountDate,omitempty"`
-		DataType      homeBrewDataType `json:"DataType,omitempty"`
+		RunId         int32     `json:"RunId,omitempty"`
+		OsType        string    `json:"OsType,omitempty"`
+		DownloadCount int32     `json:"DownloadCount,omitempty"`
+		CountDate     time.Time `json:"CountDate,omitempty"`
+		DataType      string    `json:"DataType,omitempty"`
 	}{
-		OsType:        string(h.OsType),
+		RunId:         h.RunId,
+		OsType:        h.OsType,
 		DownloadCount: h.DownloadCount,
 		CountDate:     countDateWithoutTime,
 		DataType:      h.DataType,

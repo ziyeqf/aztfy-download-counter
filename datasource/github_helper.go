@@ -11,9 +11,11 @@ import (
 	"github.com/google/go-github/v50/github"
 )
 
-func FetchGitHubDownloadCount(ctx context.Context) ([]interface{}, error) {
+const GithubPerPage = 20
+
+func FetchGitHubDownloadCount(ctx context.Context, runId int32) ([]interface{}, error) {
 	output := make([]interface{}, 0)
-	releases, err := FetchReleaseList(ctx, 1, 5)
+	releases, err := FetchReleaseList(ctx)
 	if err != nil {
 		return output, err
 	}
@@ -31,11 +33,12 @@ func FetchGitHubDownloadCount(ctx context.Context) ([]interface{}, error) {
 			}
 
 			output = append(output, GithubVersion{
+				RunId:         runId,
 				Ver:           version,
-				OsType:        osType,
+				OsType:        string(osType),
 				Arch:          arch,
 				DownloadCount: int32(*a.DownloadCount),
-				PublishDate:   r.PublishedAt.Format(TimeFormat),
+				PublishDate:   r.PublishedAt.Time,
 				CountDate:     time.Now(),
 			})
 		}
@@ -43,20 +46,29 @@ func FetchGitHubDownloadCount(ctx context.Context) ([]interface{}, error) {
 	return output, nil
 }
 
-func FetchReleaseList(ctx context.Context, page int, perPage int) ([]*github.RepositoryRelease, error) {
+func FetchReleaseList(ctx context.Context) ([]*github.RepositoryRelease, error) {
 	client := github.NewClient(nil)
+	result := make([]*github.RepositoryRelease, 0)
 
-	opt := &github.ListOptions{
-		Page:    page,
-		PerPage: perPage,
+	itemCount := 0
+	for i := 1; itemCount < GithubPerPage; i++ {
+		itemCount = 0
+
+		opt := &github.ListOptions{
+			Page:    i,
+			PerPage: GithubPerPage,
+		}
+
+		releases, _, err := client.Repositories.ListReleases(ctx, "Azure", "aztfy", opt)
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, releases...)
+		itemCount = len(releases)
 	}
 
-	releases, _, err := client.Repositories.ListReleases(ctx, "Azure", "aztfy", opt)
-	if err != nil {
-		return nil, err
-	}
-
-	return releases, nil
+	return result, nil
 }
 
 func parseTagName(tagName string, contentType string) (version string, osType OsType, arch string, err error) {
@@ -73,7 +85,7 @@ func parseTagName(tagName string, contentType string) (version string, osType Os
 }
 
 func parseTagNameForZip(tagName string) (version string, osType OsType, arch string, err error) {
-	reg := regexp.MustCompile(`(?m)aztfy_(v\d\.\d\.\d)_([a-z]+)_(.+)\.zip`)
+	reg := regexp.MustCompile(`(?m).*_(v\d*\.\d*\.\d*)_([a-z]+)_(.+)\.zip`)
 	result := reg.FindStringSubmatch(tagName)
 	if len(result) != 4 {
 		return "", "", "", fmt.Errorf("parse failed")
@@ -82,7 +94,7 @@ func parseTagNameForZip(tagName string) (version string, osType OsType, arch str
 }
 
 func parseTagNameForMsi(tagName string) (version string, osType OsType, arch string, err error) {
-	reg := regexp.MustCompile(`aztfy_(v\d\.\d\.\d)_(.+)\.msi`)
+	reg := regexp.MustCompile(`.*_(v\d*\.\d*\.\d*)_(.+)\.msi`)
 	result := reg.FindStringSubmatch(tagName)
 	if len(result) != 3 {
 		return "", "", "", fmt.Errorf("parse failed")
@@ -91,7 +103,7 @@ func parseTagNameForMsi(tagName string) (version string, osType OsType, arch str
 }
 
 func parseTagNameForGz(tagName string) (version string, osType OsType, arch string, err error) {
-	reg := regexp.MustCompile(`(?mU)aztfy_(v{0,1}\d\.\d\.\d)_(.+)\_(.+)\.tar\.gz`)
+	reg := regexp.MustCompile(`(?mU).*_(v{0,1}\d*\.\d*\.\d*)_(.+)_(.+)\.tar\.gz`)
 	result := reg.FindStringSubmatch(tagName)
 	if len(result) != 4 {
 		return "", "", "", fmt.Errorf("parse failed")

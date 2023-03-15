@@ -1,10 +1,9 @@
 package kustohelper
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
-	"io"
-	"log"
 
 	"github.com/Azure/azure-kusto-go/kusto"
 	"github.com/Azure/azure-kusto-go/kusto/ingest"
@@ -18,8 +17,10 @@ func AuthKusto(clusterUri string, clientId string, clientSecret string, tenantId
 }
 
 func SaveToKusto(ctx context.Context, kustoClient *kusto.Client, dbName string, tableName string, mapping string, versions []interface{}) (chan error, error) {
-	reader, encodeFunc := VersionEncode(versions)
-	go encodeFunc()
+	reader, err := versionsEncode(versions)
+	if err != nil {
+		return nil, err
+	}
 
 	in, err := ingest.New(kustoClient, dbName, tableName)
 	if err != nil {
@@ -37,7 +38,7 @@ func SaveToKusto(ctx context.Context, kustoClient *kusto.Client, dbName string, 
 		//ingest.IfNotExists(ingestTag),
 		//ingest.Tags(append([]string{}, ingestTag)),
 		ingest.ReportResultToTable(), // it's not recommended to read status, but it's helpful for debug.
-		//ingest.FlushImmediately(), // maybe it's not a good practice.
+		ingest.FlushImmediately(),    // maybe it's not a good practice.
 	)
 	if err != nil {
 		return nil, err
@@ -46,22 +47,14 @@ func SaveToKusto(ctx context.Context, kustoClient *kusto.Client, dbName string, 
 	return result.Wait(ctx), nil
 }
 
-func VersionEncode(data []interface{}) (*io.PipeReader, func()) {
-	r, w := io.Pipe()
-	enc := json.NewEncoder(w)
-
-	return r, func() {
-		defer func(w *io.PipeWriter) {
-			err := w.Close()
-			if err != nil {
-				log.Println(err)
-			}
-		}(w)
-		for _, d := range data {
-			if err := enc.Encode(d); err != nil {
-				log.Fatal(err)
-			}
+func versionsEncode(input []interface{}) (*bytes.Buffer, error) {
+	buf := bytes.NewBuffer(nil)
+	enc := json.NewEncoder(buf)
+	for _, v := range input {
+		if err := enc.Encode(v); err != nil {
+			return nil, err
 		}
-
 	}
+
+	return buf, nil
 }

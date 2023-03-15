@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-const HomeBrewApiUri = "https://formulae.brew.sh/api/formula/aztfy.json"
+const HomeBrewApiUri = "https://formulae.brew.sh/api/formula/aztfexport.json"
 
 type BrewJson struct {
 	Analytics struct {
@@ -29,7 +29,7 @@ type installCount struct {
 	Aztfy int `json:"aztfy"`
 }
 
-func FetchHomeBrewDownloadCount() ([]interface{}, error) {
+func FetchHomeBrewDownloadCount(runId int32) ([]interface{}, error) {
 	output := make([]interface{}, 0)
 
 	brewJson, err := requestHomeBrewSource()
@@ -38,8 +38,8 @@ func FetchHomeBrewDownloadCount() ([]interface{}, error) {
 	}
 
 	for _, osType := range []OsType{OsTypeDarwin, OsTypeLinux} {
-		for _, dataType := range []homeBrewDataType{ThirtyDays, NinetyDays, OneYear} {
-			output = append(output, generateHomeBrewVersion(*brewJson, osType, dataType))
+		for _, dataType := range []HomeBrewDataType{ThirtyDays, NinetyDays, OneYear} {
+			output = append(output, generateHomeBrewVersion(*brewJson, osType, dataType, runId))
 		}
 	}
 
@@ -68,7 +68,7 @@ func requestHomeBrewSource() (*BrewJson, error) {
 	return &brewJson, err
 }
 
-func generateHomeBrewVersion(input BrewJson, osType OsType, dataType homeBrewDataType) HomeBrewVersion {
+func generateHomeBrewVersion(input BrewJson, osType OsType, dataType HomeBrewDataType, runId int32) HomeBrewVersion {
 	var i install
 	if osType == OsTypeDarwin {
 		i = input.Analytics.Install
@@ -77,8 +77,9 @@ func generateHomeBrewVersion(input BrewJson, osType OsType, dataType homeBrewDat
 	}
 
 	output := HomeBrewVersion{
-		OsType:    osType,
-		DataType:  dataType,
+		RunId:     runId,
+		OsType:    string(osType),
+		DataType:  string(dataType),
 		CountDate: time.Now(),
 	}
 

@@ -6,11 +6,12 @@ import (
 )
 
 type GithubVersion struct {
+	RunId         int32     `json:"RunId,omitempty"`
 	Ver           string    `json:"Version,omitempty"`
-	OsType        OsType    `json:"OsType,omitempty"`
+	OsType        string    `json:"OsType,omitempty"`
 	Arch          string    `json:"Arch,omitempty"`
 	DownloadCount int32     `json:"DownloadCount,omitempty"`
-	PublishDate   string    `json:"PublishDate,omitempty"`
+	PublishDate   time.Time `json:"PublishDate,omitempty"`
 	CountDate     time.Time `json:"CountDate,omitempty"`
 }
 
@@ -21,15 +22,17 @@ func (h *GithubVersion) MarshalJson() ([]byte, error) {
 	}
 
 	return json.Marshal(&struct {
+		RunId         int32     `json:"RunId,omitempty"`
 		Ver           string    `json:"Version,omitempty"`
 		OsType        string    `json:"OsType,omitempty"`
 		Arch          string    `json:"Arch,omitempty"`
 		DownloadCount int32     `json:"DownloadCount,omitempty"`
-		PublishDate   string    `json:"PublishDate,omitempty"`
+		PublishDate   time.Time `json:"PublishDate,omitempty"`
 		CountDate     time.Time `json:"CountDate,omitempty"`
 	}{
+		RunId:         h.RunId,
 		Ver:           h.Ver,
-		OsType:        string(h.OsType),
+		OsType:        h.OsType,
 		Arch:          h.Arch,
 		DownloadCount: h.DownloadCount,
 		PublishDate:   h.PublishDate,
