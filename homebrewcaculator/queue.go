@@ -6,11 +6,11 @@ type Queue struct {
 }
 
 type Node struct {
-	Value CalculateDataAtDayNFunc
+	Value calcFunc
 	Next  *Node
 }
 
-func (q *Queue) Enqueue(v ...CalculateDataAtDayNFunc) {
+func (q *Queue) Enqueue(v ...calcFunc) {
 	if len(v) == 0 {
 		return
 	}
@@ -26,13 +26,13 @@ func (q *Queue) Enqueue(v ...CalculateDataAtDayNFunc) {
 	}
 }
 
-func (q *Queue) Dequeue() *CalculateDataAtDayNFunc {
+func (q *Queue) Dequeue() calcFunc {
 	if q.Head == nil {
 		return nil
 	}
 	v := q.Head.Value
 	q.Head = q.Head.Next
-	return &v
+	return v
 }
 
 func (q *Queue) IsEmpty() bool {
