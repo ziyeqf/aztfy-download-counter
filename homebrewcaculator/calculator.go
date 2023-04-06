@@ -1,49 +1,80 @@
 package homebrewcaculator
 
+import (
+	"context"
+	"errors"
+)
+
 type Span int
 
 type calcFunc func(client DatabaseClient) ([]calcFunc, error)
 
 type Calculator struct {
 	spans []Span
-	db    DatabaseClient
+	db    *DatabaseClient
 }
 
-func NewCalculator(spans []Span, db DatabaseClient) Calculator {
+func NewCalculator(spans []Span, db *DatabaseClient) Calculator {
 	return Calculator{spans: spans, db: db}
 }
 
-func (c Calculator) Calc(idx int) {
+func (c Calculator) Calc(ctx context.Context, idx int) error {
 	queue := Queue{}
 	for _, span := range c.spans {
-		queue.Enqueue(c.calcCountRight(idx, span))
-		queue.Enqueue(c.calcTotalCountRight(idx, span))
-		queue.Enqueue(c.calcTotalCountLeft(idx, span))
-		queue.Enqueue(c.calcCountLeft(idx, span))
+		queue.Enqueue(c.calcCountRight(ctx, idx, span))
+		queue.Enqueue(c.calcTotalCountRight(ctx, idx, span))
+		queue.Enqueue(c.calcTotalCountLeft(ctx, idx-1, span))
+		queue.Enqueue(c.calcCountLeft(ctx, idx-int(span), span))
 	}
 
+	var errList error
 	for !queue.IsEmpty() {
 		calcFunc := queue.Dequeue()
 		if calcFunc != nil {
-			newFuncs, err := calcFunc(c.db)
+			newFuncs, err := calcFunc(*c.db)
 			if err != nil {
-				// TODO: collect the errors (errors.Join) and continue
-				panic(err)
+				errList = errors.Join(err)
+				continue
 			}
 			queue.Enqueue(newFuncs...)
 		}
 	}
+
+	return errList
 }
 
-// TODO Needs a ASCII diagram to explain what are count (left/right) and total count (left/right)
+// the core algorithm is: ed(n) = xd(n) - xd(n-1) + ed(n-x)
+// ed(n) is the count at index n
+// xd(n) is the total count of past `x` at index n
+// So we can calculate one unknown variables from the other three known variables.
+// ┌───────┬───┬───┬───┬───┐
+// │days(n)│n-x│...│n-1│ n │
+// ├───────┼───┼───┼───┼───┤
+// │ed(n)  │ a │   │   │ b │
+// ├───────┼───┼───┼───┼───┤
+// │xd(n)  │   │   │ c │ d │
+// └───────┴───┴───┴───┴───┘
+// to make things more understandable, we call `a` as `Count Left`, b as `Count Right`, c as `Total Count Left`, d as `Total Count Right`.
+// when we get a new `a`, it might become a new `b` or a new `a` with other `x`(spans).
+// so we put all possible pattern into the queue, try to calculate the unknown variables.
+// same for the `b` and `c` and `d`.
+// a new `a` -> a new `b` or `a` with different `x`
+// a new `b` -> a new `a` or `b` with different `x`
+// a new `c` -> a new `d` or `c` with different `x`
+// a nwe `d` -> a new `c` or `d` with different `x`
 
-// Count -> ed(n)
-// Total Count -> xd(n)
-
+// ┌───────┬───┬───┬───┬───┐
+// │days(n)│n-x│...│n-1│ n │
+// ├───────┼───┼───┼───┼───┤
+// │ed(n)  │ k │   │   │ ? │
+// ├───────┼───┼───┼───┼───┤
+// │xd(n)  │   │   │ k │ k │
+// └───────┴───┴───┴───┴───┘
+// `k` means known.
 // ed(n) = xd(n) - xd(n-1) + ed(n-x)
-func (c Calculator) calcCountRight(idx int, span Span) calcFunc {
+func (c Calculator) calcCountRight(ctx context.Context, idx int, span Span) calcFunc {
 	return func(client DatabaseClient) ([]calcFunc, error) {
-		this, err := client.Get(idx)
+		this, err := client.Get(ctx, idx)
 		if err != nil {
 			return nil, err
 		}
@@ -52,11 +83,11 @@ func (c Calculator) calcCountRight(idx int, span Span) calcFunc {
 			return nil, nil
 		}
 
-		prev, err := client.Get(idx - 1)
+		prev, err := client.Get(ctx, idx-1)
 		if err != nil {
 			return nil, err
 		}
-		prevSpan, err := client.Get(idx - int(span))
+		prevSpan, err := client.Get(ctx, idx-int(span))
 		if err != nil {
 			return nil, err
 		}
@@ -70,58 +101,26 @@ func (c Calculator) calcCountRight(idx int, span Span) calcFunc {
 		}
 
 		this.Count = xdN - xdNPrev + prevSpan.Count
-		if err = client.Set(idx, this); err != nil {
+		if err = client.Set(ctx, idx, this); err != nil {
 			return nil, err
 		}
 
-		return c.postCalcCount(idx), nil
+		return c.postCalcCount(ctx, idx), nil
 	}
 }
 
-func (c Calculator) postCalcCount(idx int) []calcFunc {
-	var result []calcFunc
-
-	for _, span := range c.spans {
-		result = append(result,
-			// Make the new idx as count left
-			c.calcCountRight(idx+int(span), span),
-			c.calcTotalCountLeft(idx+int(span)-1, span),
-			c.calcTotalCountRight(idx+int(span), span),
-
-			// Make the new idx as count right
-			c.calcCountLeft(idx-int(span), span),
-			c.calcTotalCountLeft(idx-1, span),
-			c.calcTotalCountRight(idx, span),
-		)
-	}
-
-	return result
-}
-
-func (c Calculator) postCalcTotalCount(idx int) []calcFunc {
-	var result []calcFunc
-
-	for _, span := range c.spans {
-		result = append(result,
-			// Make the new idx as total count left
-			c.calcCountRight(idx+1, span),
-			c.calcCountLeft(idx+1-int(span), span),
-			c.calcTotalCountRight(idx+1, span),
-
-			// Make the new idx as total count right
-			c.calcCountRight(idx, span),
-			c.calcCountLeft(idx-int(span), span),
-			c.calcTotalCountLeft(idx-1, span),
-		)
-	}
-
-	return result
-}
-
+// ┌───────┬───┬───┬───┬───┐
+// │days(n)│n-x│...│n-1│ n │
+// ├───────┼───┼───┼───┼───┤
+// │ed(n)  │ k │   │   │ k │
+// ├───────┼───┼───┼───┼───┤
+// │xd(n)  │   │   │ k │ ? │
+// └───────┴───┴───┴───┴───┘
+// `k` means known.
 // xd(n) = ed(n) + xd(n-1) - ed(n-x)
-func (c Calculator) calcTotalCountRight(idx int, span Span) calcFunc {
+func (c Calculator) calcTotalCountRight(ctx context.Context, idx int, span Span) calcFunc {
 	return func(client DatabaseClient) ([]calcFunc, error) {
-		this, err := client.Get(idx)
+		this, err := client.Get(ctx, idx)
 		if err != nil {
 			return nil, err
 		}
@@ -131,11 +130,11 @@ func (c Calculator) calcTotalCountRight(idx int, span Span) calcFunc {
 			return nil, nil
 		}
 
-		prev, err := client.Get(idx - 1)
+		prev, err := client.Get(ctx, idx-1)
 		if err != nil {
 			return nil, err
 		}
-		prevSpan, err := client.Get(idx - int(span))
+		prevSpan, err := client.Get(ctx, idx-int(span))
 		if err != nil {
 			return nil, err
 		}
@@ -149,18 +148,26 @@ func (c Calculator) calcTotalCountRight(idx int, span Span) calcFunc {
 		}
 
 		this.TotalCounts[span] = this.Count + prev.TotalCounts[span] - prevSpan.Count
-		if err = client.Set(idx, this); err != nil {
+		if err = client.Set(ctx, idx, this); err != nil {
 			return nil, err
 		}
 
-		return c.postCalcTotalCount(idx), nil
+		return c.postCalcTotalCount(ctx, idx), nil
 	}
 }
 
-// d(n-x) = xd(n) - xd(n-1) + ed(n)
-func (c Calculator) calcCountLeft(idx int, span Span) calcFunc {
+// ┌───────┬───┬───┬───┬───┐
+// │days(n)│n-x│...│n-1│ n │
+// ├───────┼───┼───┼───┼───┤
+// │ed(n)  │ ? │   │   │ k │
+// ├───────┼───┼───┼───┼───┤
+// │xd(n)  │   │   │ k │ k │
+// └───────┴───┴───┴───┴───┘
+// `k` means known.
+// d(n-x) = xd(n-1) - xd(n) + ed(n)
+func (c Calculator) calcCountLeft(ctx context.Context, idx int, span Span) calcFunc {
 	return func(client DatabaseClient) ([]calcFunc, error) {
-		this, err := client.Get(idx)
+		this, err := client.Get(ctx, idx)
 		if err != nil {
 			return nil, err
 		}
@@ -169,11 +176,11 @@ func (c Calculator) calcCountLeft(idx int, span Span) calcFunc {
 			return nil, nil
 		}
 
-		nextSpan, err := client.Get(idx + int(span))
+		nextSpan, err := client.Get(ctx, idx+int(span))
 		if err != nil {
 			return nil, err
 		}
-		nextSpanPrev, err := client.Get(idx + int(span) - 1)
+		nextSpanPrev, err := client.Get(ctx, idx+int(span)-1)
 		if err != nil {
 			return nil, err
 		}
@@ -186,19 +193,27 @@ func (c Calculator) calcCountLeft(idx int, span Span) calcFunc {
 			return nil, nil
 		}
 
-		nextSpanPrev.Count = xdNextSpan - xdNextSpanPrev + nextSpan.Count
-		if err = client.Set(idx, this); err != nil {
+		this.Count = xdNextSpanPrev - xdNextSpan + nextSpan.Count
+		if err = client.Set(ctx, idx, this); err != nil {
 			return nil, err
 		}
 
-		return c.postCalcCount(idx), nil
+		return c.postCalcCount(ctx, idx), nil
 	}
 }
 
+// ┌───────┬───┬───┬───┬───┐
+// │days(n)│n-x│...│ n │n+1│
+// ├───────┼───┼───┼───┼───┤
+// │ed(n)  │ k │   │   │ k │
+// ├───────┼───┼───┼───┼───┤
+// │xd(n)  │   │   │ ? │ k │
+// └───────┴───┴───┴───┴───┘
+// `k` means known.
 // xd(n-1) = xd(n) - ed(n) + d(n-x)
-func (c Calculator) calcTotalCountLeft(idx int, span Span) calcFunc {
+func (c Calculator) calcTotalCountLeft(ctx context.Context, idx int, span Span) calcFunc {
 	return func(client DatabaseClient) ([]calcFunc, error) {
-		this, err := client.Get(idx)
+		this, err := client.Get(ctx, idx)
 		if err != nil {
 			return nil, err
 		}
@@ -208,11 +223,11 @@ func (c Calculator) calcTotalCountLeft(idx int, span Span) calcFunc {
 			return nil, nil
 		}
 
-		next, err := client.Get(idx + 1)
+		next, err := client.Get(ctx, idx+1)
 		if err != nil {
 			return nil, err
 		}
-		nextPrevSpan, err := client.Get(idx - int(span) + 1)
+		nextPrevSpan, err := client.Get(ctx, idx-int(span)+1)
 		if err != nil {
 			return nil, err
 		}
@@ -225,10 +240,50 @@ func (c Calculator) calcTotalCountLeft(idx int, span Span) calcFunc {
 			return nil, nil
 		}
 		this.TotalCounts[span] = xdNext - next.Count + nextPrevSpan.Count
-		if err = client.Set(idx, this); err != nil {
+		if err = client.Set(ctx, idx, this); err != nil {
 			return nil, err
 		}
 
-		return c.postCalcTotalCount(idx), nil
+		return c.postCalcTotalCount(ctx, idx), nil
 	}
+}
+
+func (c Calculator) postCalcCount(ctx context.Context, idx int) []calcFunc {
+	var result []calcFunc
+
+	for _, span := range c.spans {
+		result = append(result,
+			// Make the new idx as count left
+			c.calcCountRight(ctx, idx+int(span), span),
+			c.calcTotalCountLeft(ctx, idx+int(span)-1, span),
+			c.calcTotalCountRight(ctx, idx+int(span), span),
+
+			// Make the new idx as count right
+			c.calcCountLeft(ctx, idx-int(span), span),
+			c.calcTotalCountLeft(ctx, idx-1, span),
+			c.calcTotalCountRight(ctx, idx, span),
+		)
+	}
+
+	return result
+}
+
+func (c Calculator) postCalcTotalCount(ctx context.Context, idx int) []calcFunc {
+	var result []calcFunc
+
+	for _, span := range c.spans {
+		result = append(result,
+			// Make the new idx as total count left
+			c.calcCountRight(ctx, idx+1, span),
+			c.calcCountLeft(ctx, idx+1-int(span), span),
+			c.calcTotalCountRight(ctx, idx+1, span),
+
+			// Make the new idx as total count right
+			c.calcCountRight(ctx, idx, span),
+			c.calcCountLeft(ctx, idx-int(span), span),
+			c.calcTotalCountLeft(ctx, idx-1, span),
+		)
+	}
+
+	return result
 }
