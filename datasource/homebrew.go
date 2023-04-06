@@ -4,7 +4,8 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"time"
+
+	"aztfy-download-counter/database"
 )
 
 const HomeBrewApiUri = "https://formulae.brew.sh/api/formula/aztfexport.json"
@@ -26,21 +27,19 @@ type install struct {
 }
 
 type installCount struct {
-	Aztfy int `json:"aztfy"`
+	Aztfy int `json:"aztfexport"`
 }
 
-func FetchHomeBrewDownloadCount(runId int32) ([]interface{}, error) {
-	output := make([]interface{}, 0)
+func FetchHomeBrewDownloadCount(date string) ([]database.HomebrewVersion, error) {
+	output := make([]database.HomebrewVersion, 0)
 
 	brewJson, err := requestHomeBrewSource()
 	if err != nil {
 		return output, err
 	}
 
-	for _, osType := range []OsType{OsTypeDarwin, OsTypeLinux} {
-		for _, dataType := range []HomeBrewDataType{ThirtyDays, NinetyDays, OneYear} {
-			output = append(output, generateHomeBrewVersion(*brewJson, osType, dataType, runId))
-		}
+	for _, osType := range []database.OsType{database.OsTypeDarwin, database.OsTypeLinux} {
+		output = append(output, generateHomeBrewVersion(*brewJson, osType, date))
 	}
 
 	return output, nil
@@ -68,28 +67,20 @@ func requestHomeBrewSource() (*BrewJson, error) {
 	return &brewJson, err
 }
 
-func generateHomeBrewVersion(input BrewJson, osType OsType, dataType HomeBrewDataType, runId int32) HomeBrewVersion {
+func generateHomeBrewVersion(input BrewJson, osType database.OsType, date string) database.HomebrewVersion {
 	var i install
-	if osType == OsTypeDarwin {
+	if osType == database.OsTypeDarwin {
 		i = input.Analytics.Install
 	} else {
 		i = input.AnalyticsLinux.Install
 	}
 
-	output := HomeBrewVersion{
-		RunId:     runId,
-		OsType:    string(osType),
-		DataType:  string(dataType),
-		CountDate: time.Now(),
-	}
-
-	switch dataType {
-	case ThirtyDays:
-		output.DownloadCount = int32(i.ThirtyDays.Aztfy)
-	case NinetyDays:
-		output.DownloadCount = int32(i.NinetyDays.Aztfy)
-	case OneYear:
-		output.DownloadCount = int32(i.OneYear.Aztfy)
+	output := database.HomebrewVersion{
+		OsType:         string(osType),
+		CountDate:      date,
+		ThirtyDayCount: i.ThirtyDays.Aztfy,
+		NinetyDayCount: i.NinetyDays.Aztfy,
+		OneYearCount:   i.OneYear.Aztfy,
 	}
 
 	return output
