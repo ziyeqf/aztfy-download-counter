@@ -9,7 +9,7 @@ pool:
 
 variables:
   GOBIN:  '$(GOPATH)/bin' # Go binaries path
-  GOROOT: '/usr/local/go1.11' # Go installation path
+  GOROOT: '/usr/local/go' # Go installation path
   GOPATH: '$(system.defaultWorkingDirectory)/gopath' # Go workspace path
   modulePath: '$(GOPATH)/src/github.com/$(build.repository.name)' # Path to the module's code
 
@@ -17,7 +17,7 @@ steps:
 - task: GoTool@0
   displayName: "install Go"
   inputs:
-    version: '1.19'
+    version: '1.20.2'
     goPath: '$(GOPATH)'
     goBin: '$(GOPATH)/bin'
 
@@ -49,7 +49,5 @@ steps:
   workingDirectory: '$(modulePath)'
   displayName: 'Gather data and upload'
   env:  
-    ARM_CLIENT_ID: $(ARM_CLIENT_ID)
-    ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
-    ARM_TENANT_ID: $(ARM_TENANT_ID)
-    KUSTO_CLUSTER_URI: $(KUSTO_CLUSTER_URI)
+    COSMOSDB_ENDPOINT: $(COSMOSDB_ENDPOINT)
+    COSMOSDB_KEY: $(COSMOSDB_KEY)
