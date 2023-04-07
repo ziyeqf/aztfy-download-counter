@@ -109,3 +109,19 @@ func BatchUpsert[T DBItem](ctx context.Context, container *azcosmos.ContainerCli
 
 	return nil
 }
+
+func ReadItem[T DBItem](ctx context.Context, container *azcosmos.ContainerClient, osType, itemId string, response *T) error {
+	pk := azcosmos.NewPartitionKeyString(osType)
+
+	itemResponse, err := container.ReadItem(ctx, pk, itemId, nil)
+	if err != nil {
+		return err
+	}
+
+	err = json.Unmarshal(itemResponse.Value, &response)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

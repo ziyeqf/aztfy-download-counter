@@ -25,7 +25,9 @@ func (w GithubWorker) Run(ctx context.Context, date string) error {
 	osTypeMap := make(map[string][]database.GithubVersion)
 	for _, item := range ghResp {
 		item.Id = newGithubItemId(date, item.OsType, item.Arch, item.Ver)
-		prevObj, err := getPrevObj(ctx, w.Container, item.OsType, date)
+		item.CountDate = date
+		// getPrevObj func needs item.CountDate has value.
+		prevObj, err := getPrevObj(ctx, w.Container, item)
 		if err == nil {
 			item.TodayCount = calcTodayCnt(prevObj, item)
 		}
@@ -57,22 +59,15 @@ func calcTodayCnt(prevObj database.GithubVersion, currObj database.GithubVersion
 	return currObj.TotalCount - prevObj.TotalCount
 }
 
-func getPrevObj(ctx context.Context, container *azcosmos.ContainerClient, osType, date string) (database.GithubVersion, error) {
-	var prevObj database.GithubVersion
-	resp, err := database.QueryItem(ctx, container, osType, date, database.GithubVersion{})
+func getPrevObj(ctx context.Context, container *azcosmos.ContainerClient, item database.GithubVersion) (database.GithubVersion, error) {
+	prevDate := idx2DateStr(dateStr2Idx(item.CountDate) - 1)
+	prevObj := database.GithubVersion{}
+	err := database.ReadItem(ctx, container, item.OsType, newGithubItemId(prevDate, item.OsType, item.Arch, item.Ver), &prevObj)
 	if err != nil {
 		return prevObj, err
 	}
 
-	if len(resp) == 0 {
-		return prevObj, nil
-	}
-
-	if len(resp) > 1 {
-		return prevObj, fmt.Errorf("more than one item found for %s", date)
-	}
-
-	return resp[0], nil
+	return prevObj, nil
 }
 
 func newGithubItemId(date, osType, arch, ver string) string {
