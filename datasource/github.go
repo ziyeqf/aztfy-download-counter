@@ -28,7 +28,7 @@ func FetchGitHubDownloadCount(ctx context.Context) ([]database.GithubVersion, er
 
 			version, osType, arch, err := parseTagName(*a.Name, *a.ContentType)
 			if err != nil {
-				log.Printf("[github] skip assest: %s\n", *a.Name)
+				log.Printf("[Github] skip assest: %s\n", *a.Name)
 				continue
 			}
 

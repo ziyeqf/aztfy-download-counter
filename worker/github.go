@@ -25,6 +25,8 @@ func (w GithubWorker) Run(ctx context.Context, date string) error {
 	osTypeMap := make(map[string][]database.GithubVersion)
 	for _, item := range ghResp {
 		item.Id = newGithubItemId(date, item.OsType, item.Arch, item.Ver)
+		item.CountDate = date
+		// getPrevObj func needs item.CountDate has value.
 		prevObj, err := getPrevObj(ctx, w.Container, item)
 		if err == nil {
 			item.TodayCount = calcTodayCnt(prevObj, item)
