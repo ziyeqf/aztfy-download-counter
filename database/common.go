@@ -18,22 +18,22 @@ type DBItem interface {
 
 type HomebrewVersion struct {
 	Id             string `json:"id"`
-	OsType         string `json:"OsType,omitempty"`
+	OsType         string `json:"OsType"`
 	TodayCount     int    `json:"TodayCount"`
 	ThirtyDayCount int    `json:"ThirtyDayCount"`
 	NinetyDayCount int    `json:"NinetyDayCount"`
 	OneYearCount   int    `json:"OneYearCount"`
 	ApiFailure     bool   `json:"ApiFailure"`
-	CountDate      string `json:"CountDate,omitempty"`
+	CountDate      string `json:"CountDate"`
 }
 
 type GithubVersion struct {
 	Id          string    `json:"id"`
-	Ver         string    `json:"Version,omitempty"`
-	OsType      string    `json:"OsType,omitempty"`
-	Arch        string    `json:"Arch,omitempty"`
-	TodayCount  int       `json:"TodayCount,omitempty"`
-	TotalCount  int       `json:"DownloadCount,omitempty"`
-	PublishDate time.Time `json:"PublishDate,omitempty"`
-	CountDate   string    `json:"CountDate,omitempty"`
+	Ver         string    `json:"Version"`
+	OsType      string    `json:"OsType"`
+	Arch        string    `json:"Arch"`
+	TodayCount  int       `json:"TodayCount"`
+	TotalCount  int       `json:"DownloadCount"`
+	PublishDate time.Time `json:"PublishDate"`
+	CountDate   string    `json:"CountDate"`
 }
