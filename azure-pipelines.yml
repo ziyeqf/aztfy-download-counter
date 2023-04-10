@@ -47,7 +47,7 @@ steps:
 
 - task: AzureCLI@2
   inputs:
-    azureSubscription: $(SUBSCRIPTION)
+    azureSubscription: $(Subscription)
     scriptType: 'bash'
     scriptLocation: 'inlineScript'
     inlineScript: './aztfy-download-counter'
