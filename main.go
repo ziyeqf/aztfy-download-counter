@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
+	"sync"
 	"time"
 
 	"aztfy-download-counter/database"
@@ -26,39 +26,54 @@ func main() {
 
 	ghContainer, err := dbClient.NewContainer(GHContainer)
 	if err != nil {
-		logError(err)
+		log.Println(err)
 	}
-
-	ghWorker := worker.GithubWorker{
-		Container: ghContainer,
-	}
-	err = ghWorker.Run(ctx, standardDate)
-	if err != nil {
-		logError(fmt.Errorf("[Github] %+v", err))
-	}
-	log.Println("[Github] done")
 
 	hbContainer, err := dbClient.NewContainer(HBContainer)
 	if err != nil {
-		logError(err)
+		log.Println(err)
 	}
 
-	hbWorker := worker.HomebrewWorker{
-		Container: hbContainer,
-		OsTypes: []database.OsType{
-			database.OsTypeDarwin,
-			database.OsTypeLinux,
+	logChan := make(chan string)
+	go func(logChan chan string) {
+		for message := range logChan {
+			log.Print(message)
+		}
+	}(logChan)
+
+	workers := []worker.Worker{
+		worker.GithubWorker{
+			Logger:    log.New(&logChanWriter{logChan: logChan}, "[GithubWorker]\t", 0),
+			Container: ghContainer,
+		},
+		worker.HomebrewWorker{
+			Logger:    log.New(&logChanWriter{logChan: logChan}, "[HomebrewWorker]\t", 0),
+			Container: hbContainer,
+			OsTypes: []database.OsType{
+				database.OsTypeDarwin,
+				database.OsTypeLinux,
+			},
 		},
 	}
-	err = hbWorker.Run(ctx, standardDate)
 
-	if err != nil {
-		logError(fmt.Errorf("[Homebrew] %+v", err))
+	var wg sync.WaitGroup
+	for _, w := range workers {
+		wg.Add(1)
+
+		go func(w worker.Worker) {
+			defer wg.Done()
+			w.Run(ctx, standardDate)
+		}(w)
 	}
-	log.Println("[Homebrew] done")
+
+	wg.Wait()
 }
 
-func logError(err error) {
-	log.Println(err)
-	os.Exit(1)
+type logChanWriter struct {
+	logChan chan<- string
+}
+
+func (w *logChanWriter) Write(p []byte) (int, error) {
+	w.logChan <- string(p)
+	return len(p), nil
 }

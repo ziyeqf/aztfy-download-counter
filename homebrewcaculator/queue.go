@@ -1,40 +1,43 @@
 package homebrewcaculator
 
-type Queue struct {
-	Head *Node
-	Tail *Node
+type queue struct {
+	Head *node
+	Tail *node
+	Size int
 }
 
-type Node struct {
+type node struct {
 	Value calcFunc
-	Next  *Node
+	Next  *node
 }
 
-func (q *Queue) Enqueue(v ...calcFunc) {
+func (q *queue) enqueue(v ...calcFunc) {
 	if len(v) == 0 {
 		return
 	}
 	for _, v := range v {
-		n := &Node{Value: v}
+		q.Size++
+		n := &node{Value: v}
 		if q.Head == nil {
 			q.Head = n
 			q.Tail = n
-			return
+			continue
 		}
 		q.Tail.Next = n
 		q.Tail = n
 	}
 }
 
-func (q *Queue) Dequeue() calcFunc {
+func (q *queue) dequeue() calcFunc {
 	if q.Head == nil {
 		return nil
 	}
 	v := q.Head.Value
 	q.Head = q.Head.Next
+	q.Size--
 	return v
 }
 
-func (q *Queue) IsEmpty() bool {
+func (q *queue) isEmpty() bool {
 	return q.Head == nil
 }

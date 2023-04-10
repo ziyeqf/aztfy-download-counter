@@ -2,7 +2,6 @@ package worker
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -23,13 +22,15 @@ const IndexStartDate = "2023-04-03"
 const TimeFormat = "2006-01-02"
 
 type homebrewDBClient struct {
+	Logger    *log.Logger
 	Container *azcosmos.ContainerClient
 	OsType    database.OsType
 	cache     map[int]homebrewcaculator.CountInfo
 }
 
-func hewHomebrewDBClient(container *azcosmos.ContainerClient, osType database.OsType) homebrewDBClient {
+func newHomebrewDBClient(container *azcosmos.ContainerClient, osType database.OsType, logger *log.Logger) homebrewDBClient {
 	return homebrewDBClient{
+		Logger:    logger,
 		Container: container,
 		OsType:    osType,
 		cache:     make(map[int]homebrewcaculator.CountInfo),
@@ -112,6 +113,7 @@ func (h homebrewDBClient) Set(ctx context.Context, idx int, data homebrewcaculat
 		}
 	}
 
+	h.Logger.Printf("update homebrew data to db: %+v\r", dbObj)
 	err = database.CreateOrUpdateItem(ctx, h.Container, string(h.OsType), dbObj)
 	if err != nil {
 		return err
@@ -123,42 +125,44 @@ func (h homebrewDBClient) Set(ctx context.Context, idx int, data homebrewcaculat
 }
 
 type HomebrewWorker struct {
+	Logger    *log.Logger
 	Container *azcosmos.ContainerClient
 	OsTypes   []database.OsType
 }
 
-func (w HomebrewWorker) Run(ctx context.Context, date string) error {
-	log.Println("[Homebrew] fetch data")
+func (w HomebrewWorker) Run(ctx context.Context, date string) {
+	w.Logger.Println("fetch data")
 	apiFailure := false
 	hbResp, err := datasource.FetchHomeBrewDownloadCount(date)
 	if err != nil {
-		log.Printf("[Homebrew] fetch homebrew data failed: %+v\r\n", err)
+		w.Logger.Println("fetch homebrew data failed: %+v\r", err)
 		apiFailure = true
 	}
 
-	log.Println("[Homebrew] write raw data to db")
+	w.Logger.Println("write raw data to db")
 	for _, item := range hbResp {
 		item.Id = newHomebrewItemId(date, item.OsType)
 		item.ApiFailure = apiFailure
 		err := database.CreateOrUpdateItem(ctx, w.Container, item.OsType, item)
 		if err != nil {
-			return err
+			w.Logger.Println(err)
+			return
 		}
 	}
 
-	log.Println("[Homebrew] begin calc")
-	var errs error
+	w.Logger.Println("begin calc")
 	for _, osType := range w.OsTypes {
-		var calcDBClient homebrewcaculator.DatabaseClient = hewHomebrewDBClient(w.Container, osType)
-
-		calculator := homebrewcaculator.NewCalculator([]homebrewcaculator.Span{ThirtyDaysSpan, NinetyDaysSpan, OneYearSpan}, &calcDBClient)
+		var calcDBClient homebrewcaculator.DatabaseClient = newHomebrewDBClient(w.Container, osType, w.Logger)
+		calcLogger := log.New(w.Logger.Writer(), w.Logger.Prefix()+"[Calc] ", 0)
+		calculator := homebrewcaculator.NewCalculator([]homebrewcaculator.Span{ThirtyDaysSpan, NinetyDaysSpan, OneYearSpan}, &calcDBClient, calcLogger)
 		err := calculator.Calc(ctx, dateStr2Idx(date))
 		if err != nil {
-			errs = errors.Join(errs, err)
+			w.Logger.Println(err)
 		}
 	}
 
-	return errs
+	w.Logger.Println("done")
+	return
 }
 
 func idx2DateStr(idx int) string {

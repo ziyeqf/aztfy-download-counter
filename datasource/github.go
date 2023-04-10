@@ -3,7 +3,6 @@ package datasource
 import (
 	"context"
 	"fmt"
-	"log"
 	"regexp"
 	"strings"
 
@@ -28,7 +27,6 @@ func FetchGitHubDownloadCount(ctx context.Context) ([]database.GithubVersion, er
 
 			version, osType, arch, err := parseTagName(*a.Name, *a.ContentType)
 			if err != nil {
-				log.Printf("[Github] skip assest: %s\n", *a.Name)
 				continue
 			}
 

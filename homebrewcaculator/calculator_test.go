@@ -2,6 +2,7 @@ package homebrewcaculator_test
 
 import (
 	"context"
+	"log"
 	"reflect"
 	"testing"
 
@@ -38,6 +39,15 @@ type testCase struct {
 	startIdx int
 }
 
+type testingWriter struct {
+	t *testing.T
+}
+
+func (w *testingWriter) Write(p []byte) (n int, err error) {
+	w.t.Log(string(p))
+	return len(p), nil
+}
+
 func TestCalculator_Calc(t *testing.T) {
 	cases := map[string]testCase{
 		"count right":       case_todayCountRight(),
@@ -54,14 +64,15 @@ func TestCalculator_Calc(t *testing.T) {
 				var mockDBClient homebrewcaculator.DatabaseClient = MockDBClient{
 					MockData: c.data,
 				}
-				calculator := homebrewcaculator.NewCalculator(c.spans, &mockDBClient)
+
+				calculator := homebrewcaculator.NewCalculator(c.spans, &mockDBClient, log.New(&testingWriter{t}, "", log.LstdFlags))
 				err := calculator.Calc(ctx, c.startIdx)
 				if err != nil {
 					t.Errorf("unexpected error: %v", err)
 				}
 
 				if !reflect.DeepEqual(c.expect, c.data) {
-					t.Fatalf("result does not match!\r\nexpect:\r\n%v\r\ngot\r\n%v", c.expect, c.data)
+					t.Fatalf("result does not match!\rexpect:\r%v\rgot\r%v", c.expect, c.data)
 				}
 			})
 	}
