@@ -1,8 +1,7 @@
-package worker
+package job
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -23,13 +22,16 @@ const IndexStartDate = "2023-04-03"
 const TimeFormat = "2006-01-02"
 
 type homebrewDBClient struct {
-	Container *azcosmos.ContainerClient
-	OsType    database.OsType
-	cache     map[int]homebrewcaculator.CountInfo
+	ContainerInitFunc func() (*azcosmos.ContainerClient, error)
+	Logger            *log.Logger
+	Container         *azcosmos.ContainerClient
+	OsType            database.OsType
+	cache             map[int]homebrewcaculator.CountInfo
 }
 
-func hewHomebrewDBClient(container *azcosmos.ContainerClient, osType database.OsType) homebrewDBClient {
+func newHomebrewDBClient(container *azcosmos.ContainerClient, osType database.OsType, logger *log.Logger) homebrewDBClient {
 	return homebrewDBClient{
+		Logger:    logger,
 		Container: container,
 		OsType:    osType,
 		cache:     make(map[int]homebrewcaculator.CountInfo),
@@ -112,6 +114,7 @@ func (h homebrewDBClient) Set(ctx context.Context, idx int, data homebrewcaculat
 		}
 	}
 
+	h.Logger.Printf("update homebrew data to db: %+v\r", dbObj)
 	err = database.CreateOrUpdateItem(ctx, h.Container, string(h.OsType), dbObj)
 	if err != nil {
 		return err
@@ -123,42 +126,75 @@ func (h homebrewDBClient) Set(ctx context.Context, idx int, data homebrewcaculat
 }
 
 type HomebrewWorker struct {
-	Container *azcosmos.ContainerClient
-	OsTypes   []database.OsType
+	Logger            *log.Logger
+	ContainerInitFunc func() (container *azcosmos.ContainerClient, err error)
+	OsTypes           []database.OsType
+	Date              string
 }
 
-func (w HomebrewWorker) Run(ctx context.Context, date string) error {
-	log.Println("[Homebrew] fetch data")
-	apiFailure := false
-	hbResp, err := datasource.FetchHomeBrewDownloadCount(date)
+func (w HomebrewWorker) Run(ctx context.Context) {
+	container, err := w.ContainerInitFunc()
 	if err != nil {
-		log.Printf("[Homebrew] fetch homebrew data failed: %+v\r\n", err)
+		w.Logger.Println(err)
+		return
+	}
+
+	w.Logger.Println("fetch data")
+	apiFailure := false
+	hbResp, err := datasource.FetchHomeBrewDownloadCount()
+	if err != nil {
+		w.Logger.Println("fetch homebrew data failed: %+v\r", err)
 		apiFailure = true
 	}
 
-	log.Println("[Homebrew] write raw data to db")
-	for _, item := range hbResp {
-		item.Id = newHomebrewItemId(date, item.OsType)
-		item.ApiFailure = apiFailure
-		err := database.CreateOrUpdateItem(ctx, w.Container, item.OsType, item)
+	var brewVersions []database.HomebrewVersion
+	for _, osType := range []database.OsType{database.OsTypeDarwin, database.OsTypeLinux} {
+		brewVersions = append(brewVersions, w.generateHomeBrewVersion(*hbResp, osType, w.Date, apiFailure))
+	}
+
+	w.Logger.Println("write raw data to db")
+	for _, item := range brewVersions {
+		err := database.CreateOrUpdateItem(ctx, container, item.OsType, item)
 		if err != nil {
-			return err
+			w.Logger.Println(err)
+			return
 		}
 	}
 
-	log.Println("[Homebrew] begin calc")
-	var errs error
+	w.Logger.Println("begin calc")
 	for _, osType := range w.OsTypes {
-		var calcDBClient homebrewcaculator.DatabaseClient = hewHomebrewDBClient(w.Container, osType)
-
-		calculator := homebrewcaculator.NewCalculator([]homebrewcaculator.Span{ThirtyDaysSpan, NinetyDaysSpan, OneYearSpan}, &calcDBClient)
-		err := calculator.Calc(ctx, dateStr2Idx(date))
+		var calcDBClient homebrewcaculator.DatabaseClient = newHomebrewDBClient(container, osType, w.Logger)
+		calcLogger := log.New(w.Logger.Writer(), w.Logger.Prefix()+"[Calc] ", 0)
+		calculator := homebrewcaculator.NewCalculator([]homebrewcaculator.Span{ThirtyDaysSpan, NinetyDaysSpan, OneYearSpan}, &calcDBClient, calcLogger)
+		err := calculator.Calc(ctx, dateStr2Idx(w.Date))
 		if err != nil {
-			errs = errors.Join(errs, err)
+			w.Logger.Println(err)
 		}
 	}
 
-	return errs
+	w.Logger.Println("done")
+	return
+}
+
+func (w HomebrewWorker) generateHomeBrewVersion(input datasource.BrewJson, osType database.OsType, date string, apiFailure bool) database.HomebrewVersion {
+	var i datasource.Install
+	if osType == database.OsTypeDarwin {
+		i = input.Analytics.Install
+	} else {
+		i = input.AnalyticsLinux.Install
+	}
+
+	output := database.HomebrewVersion{
+		Id:             newHomebrewItemId(date, string(osType)),
+		OsType:         string(osType),
+		CountDate:      date,
+		ThirtyDayCount: i.ThirtyDays.Aztfy,
+		NinetyDayCount: i.NinetyDays.Aztfy,
+		OneYearCount:   i.OneYear.Aztfy,
+		ApiFailure:     apiFailure,
+	}
+
+	return output
 }
 
 func idx2DateStr(idx int) string {

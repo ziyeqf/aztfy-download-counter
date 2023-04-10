@@ -3,6 +3,7 @@ package homebrewcaculator
 import (
 	"context"
 	"errors"
+	"log"
 )
 
 type Span int
@@ -10,33 +11,34 @@ type Span int
 type calcFunc func(client DatabaseClient) ([]calcFunc, error)
 
 type Calculator struct {
-	spans []Span
-	db    *DatabaseClient
+	Logger *log.Logger
+	spans  []Span
+	db     *DatabaseClient
 }
 
-func NewCalculator(spans []Span, db *DatabaseClient) Calculator {
-	return Calculator{spans: spans, db: db}
+func NewCalculator(spans []Span, db *DatabaseClient, logger *log.Logger) Calculator {
+	return Calculator{spans: spans, db: db, Logger: logger}
 }
 
 func (c Calculator) Calc(ctx context.Context, idx int) error {
-	queue := Queue{}
+	q := queue{}
 	for _, span := range c.spans {
-		queue.Enqueue(c.calcCountRight(ctx, idx, span))
-		queue.Enqueue(c.calcTotalCountRight(ctx, idx, span))
-		queue.Enqueue(c.calcTotalCountLeft(ctx, idx-1, span))
-		queue.Enqueue(c.calcCountLeft(ctx, idx-int(span), span))
+		q.enqueue(c.calcCountRight(ctx, idx, span))
+		q.enqueue(c.calcTotalCountRight(ctx, idx, span))
+		q.enqueue(c.calcTotalCountLeft(ctx, idx-1, span))
+		q.enqueue(c.calcCountLeft(ctx, idx-int(span), span))
 	}
 
 	var errList error
-	for !queue.IsEmpty() {
-		calcFunc := queue.Dequeue()
+	for !q.isEmpty() {
+		calcFunc := q.dequeue()
 		if calcFunc != nil {
 			newFuncs, err := calcFunc(*c.db)
 			if err != nil {
 				errList = errors.Join(err)
 				continue
 			}
-			queue.Enqueue(newFuncs...)
+			q.enqueue(newFuncs...)
 		}
 	}
 
