@@ -45,6 +45,7 @@ func (w PMCWorker) Run(ctx context.Context) {
 	resp, err := datasource.QueryForPMC(ctx, kustoClient, datetime)
 	if err != nil {
 		w.Logger.Println(err)
+		return
 	}
 
 	// [version][arch]PMCVersion

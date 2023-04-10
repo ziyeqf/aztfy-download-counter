@@ -25,6 +25,8 @@ func main() {
 	armClientId := os.Getenv("ARM_CLIENT_ID")
 	armClientSecret := os.Getenv("ARM_CLIENT_SECRET")
 	armTenantId := os.Getenv("ARM_TENANT_ID")
+	kustoEndpoint := os.Getenv("PMC_KUSTO_ENDPOINT")
+	pmcStartDate := os.Getenv("PMC_START_DATE")
 
 	standardDate := time.Now().UTC().Format(job.TimeFormat)
 
@@ -61,8 +63,6 @@ func main() {
 		},
 	}
 
-	kustoEndpoint := os.Getenv("PMC_KUSTO_ENDPOINT")
-	pmcStartDate := os.Getenv("PMC_START_DATE")
 	if len(pmcStartDate) == 0 {
 		pmcStartDate = standardDate
 	}
