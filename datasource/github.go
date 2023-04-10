@@ -2,47 +2,15 @@ package datasource
 
 import (
 	"context"
-	"fmt"
-	"regexp"
-	"strings"
 
-	"aztfy-download-counter/database"
 	"github.com/google/go-github/v50/github"
 )
 
 const GithubPerPage = 20
+const RepoOwner = "Azure"
+const RepoName = "aztfexport"
 
-func FetchGitHubDownloadCount(ctx context.Context) ([]database.GithubVersion, error) {
-	output := make([]database.GithubVersion, 0)
-	releases, err := FetchReleaseList(ctx)
-	if err != nil {
-		return output, err
-	}
-
-	for _, r := range releases {
-		for _, a := range r.Assets {
-			if a.Name == nil || a.DownloadCount == nil {
-				continue
-			}
-
-			version, osType, arch, err := parseTagName(*a.Name, *a.ContentType)
-			if err != nil {
-				continue
-			}
-
-			output = append(output, database.GithubVersion{
-				Ver:         version,
-				OsType:      string(osType),
-				Arch:        arch,
-				TotalCount:  *a.DownloadCount,
-				PublishDate: r.PublishedAt.Time,
-			})
-		}
-	}
-	return output, nil
-}
-
-func FetchReleaseList(ctx context.Context) ([]*github.RepositoryRelease, error) {
+func FetchGitHubDownloadCount(ctx context.Context) ([]*github.RepositoryRelease, error) {
 	client := github.NewClient(nil)
 	result := make([]*github.RepositoryRelease, 0)
 
@@ -55,7 +23,7 @@ func FetchReleaseList(ctx context.Context) ([]*github.RepositoryRelease, error) 
 			PerPage: GithubPerPage,
 		}
 
-		releases, _, err := client.Repositories.ListReleases(ctx, "Azure", "aztfy", opt)
+		releases, _, err := client.Repositories.ListReleases(ctx, RepoOwner, RepoName, opt)
 		if err != nil {
 			return nil, err
 		}
@@ -65,44 +33,4 @@ func FetchReleaseList(ctx context.Context) ([]*github.RepositoryRelease, error) 
 	}
 
 	return result, nil
-}
-
-func parseTagName(tagName string, contentType string) (version string, osType database.OsType, arch string, err error) {
-	switch contentType {
-	case "application/zip":
-		return parseTagNameForZip(tagName)
-	case "application/x-msdownload":
-		return parseTagNameForMsi(tagName)
-	case "application/gzip":
-		return parseTagNameForGz(tagName)
-	default:
-		return "", "", "", fmt.Errorf("parse failed")
-	}
-}
-
-func parseTagNameForZip(tagName string) (version string, osType database.OsType, arch string, err error) {
-	reg := regexp.MustCompile(`(?m).*_(v\d*\.\d*\.\d*)_([a-z]+)_(.+)\.zip`)
-	result := reg.FindStringSubmatch(tagName)
-	if len(result) != 4 {
-		return "", "", "", fmt.Errorf("parse failed")
-	}
-	return result[1], database.OsType(strings.ToLower(result[2])), result[3], nil
-}
-
-func parseTagNameForMsi(tagName string) (version string, osType database.OsType, arch string, err error) {
-	reg := regexp.MustCompile(`.*_(v\d*\.\d*\.\d*)_(.+)\.msi`)
-	result := reg.FindStringSubmatch(tagName)
-	if len(result) != 3 {
-		return "", "", "", fmt.Errorf("parse failed")
-	}
-	return result[1], database.OsTypeWindows, result[2], nil
-}
-
-func parseTagNameForGz(tagName string) (version string, osType database.OsType, arch string, err error) {
-	reg := regexp.MustCompile(`(?mU).*_(v{0,1}\d*\.\d*\.\d*)_(.+)_(.+)\.tar\.gz`)
-	result := reg.FindStringSubmatch(tagName)
-	if len(result) != 4 {
-		return "", "", "", fmt.Errorf("parse failed")
-	}
-	return result[1], database.OsType(strings.ToLower(result[2])), result[3], nil
 }

@@ -59,7 +59,7 @@ func QueryItem[T DBItem](ctx context.Context, container *azcosmos.ContainerClien
 		},
 	}
 
-	queryPager := container.NewQueryItemsPager("select * from c where c.OsType = @ostype AND c.CountDate = @cntDate", pk, &opt)
+	queryPager := container.NewQueryItemsPager("select * from c where c.OsType = @ostype AND c.Date = @cntDate", pk, &opt)
 
 	var errs error
 	for queryPager.More() {
@@ -80,8 +80,8 @@ func QueryItem[T DBItem](ctx context.Context, container *azcosmos.ContainerClien
 	return resp, errs
 }
 
-func BatchUpsert[T DBItem](ctx context.Context, container *azcosmos.ContainerClient, osType string, items []T) error {
-	pk := azcosmos.NewPartitionKeyString(osType)
+func BatchUpsert[T DBItem](ctx context.Context, container *azcosmos.ContainerClient, pkStr string, items []T) error {
+	pk := azcosmos.NewPartitionKeyString(pkStr)
 
 	batch := container.NewTransactionalBatch(pk)
 
