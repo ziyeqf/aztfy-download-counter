@@ -17,6 +17,9 @@ type PMCWorker struct {
 	Logger            *log.Logger
 	KustoEndpoint     string
 	Date              string
+	ArmClientId       string
+	ArmClientSecret   string
+	ArmTenantId       string
 }
 
 func (w PMCWorker) Run(ctx context.Context) {
@@ -32,7 +35,14 @@ func (w PMCWorker) Run(ctx context.Context) {
 		return
 	}
 
-	resp, err := datasource.QueryForPMC(ctx, w.KustoEndpoint, datetime)
+	kustoClient, err := datasource.AuthKusto(w.ArmClientId, w.ArmClientSecret, w.ArmTenantId, w.KustoEndpoint)
+	if err != nil {
+		w.Logger.Println(err)
+		return
+	}
+	defer kustoClient.Close()
+
+	resp, err := datasource.QueryForPMC(ctx, kustoClient, datetime)
 	if err != nil {
 		w.Logger.Println(err)
 	}

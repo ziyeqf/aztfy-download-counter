@@ -16,9 +16,9 @@ type KustoResponse struct {
 	Path string `kusto:"path"`
 }
 
-func authKusto(endpoint string) (client *kusto.Client, err error) {
+func AuthKusto(clientId, clientSecret, tenantId, endpoint string) (client *kusto.Client, err error) {
 	kustoConnectionStringBuilder := kusto.NewConnectionStringBuilder(endpoint)
-	kustoConnectionString := kustoConnectionStringBuilder.WithAzCli()
+	kustoConnectionString := kustoConnectionStringBuilder.WithAadAppKey(clientId, clientSecret, tenantId)
 	return kusto.New(kustoConnectionString)
 }
 
@@ -54,14 +54,8 @@ func queryCmdAztfexport(date time.Time) kusto.Stmt {
     and (PreciseTimeStamp >= targetDate and PreciseTimeStamp <= datetime_add('day', 1, targetDate))`).MustDefinitions(kusto.NewDefinitions().Must(defMap)).MustParameters(kusto.NewParameters().Must(paramMap))
 }
 
-func QueryForPMC(ctx context.Context, endpoint string, date time.Time) ([]KustoResponse, error) {
+func QueryForPMC(ctx context.Context, client *kusto.Client, date time.Time) ([]KustoResponse, error) {
 	var recs []KustoResponse
-
-	client, err := authKusto(endpoint)
-	if err != nil {
-		return nil, err
-	}
-	defer client.Close()
 
 	aztfy, err := doQuery(ctx, client, queryCmdAztfy(date))
 	if err != nil {
