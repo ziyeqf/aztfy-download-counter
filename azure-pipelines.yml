@@ -45,10 +45,14 @@ steps:
   workingDirectory: '$(modulePath)'
   displayName: 'Get dependencies and build'
 
-- script: |
-    ./aztfy-download-counter
-  workingDirectory: '$(modulePath)'
-  displayName: 'Gather data and upload'
+- task: AzureCLI@2
+  inputs:
+    azureSubscription: $(SUBSCRIPTION)
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: './aztfy-download-counter'
   env:  
     COSMOSDB_ENDPOINT: $(COSMOSDB_ENDPOINT)
     COSMOSDB_KEY: $(COSMOSDB_KEY)
+    PMC_KUSTO_ENDPOINT: $(PMC_KUSTO_ENDPOINT)
+    PMC_START_DATE: $(PMC_START_DATE)
