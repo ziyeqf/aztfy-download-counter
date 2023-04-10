@@ -29,18 +29,18 @@ func (w PMCWorker) Run(ctx context.Context) {
 		return
 	}
 
+	kustoClient, err := datasource.AuthKusto(w.ArmClientId, w.ArmClientSecret, w.ArmTenantId, w.KustoEndpoint)
+	if err != nil {
+		w.Logger.Println(fmt.Errorf("auth kusto failed, skipped: %v", err))
+		return
+	}
+	defer kustoClient.Close()
+
 	datetime, err := time.Parse(TimeFormat, w.Date)
 	if err != nil {
 		w.Logger.Println(err)
 		return
 	}
-
-	kustoClient, err := datasource.AuthKusto(w.ArmClientId, w.ArmClientSecret, w.ArmTenantId, w.KustoEndpoint)
-	if err != nil {
-		w.Logger.Println(err)
-		return
-	}
-	defer kustoClient.Close()
 
 	resp, err := datasource.QueryForPMC(ctx, kustoClient, datetime)
 	if err != nil {
