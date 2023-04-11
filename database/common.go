@@ -43,5 +43,6 @@ type PMCVersion struct {
 	Ver        string `json:"Version"`
 	Arch       string `json:"Arch"`
 	TodayCount int    `json:"TodayCount"`
+	TotalCount int64  `json:"TotalCount"`
 	Date       string `json:"Date"`
 }

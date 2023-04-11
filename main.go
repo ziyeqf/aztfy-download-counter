@@ -16,7 +16,7 @@ import (
 const DBName = "aztfystatistics"
 const HBContainer = "Homebrew"
 const GHContainer = "Github"
-const PMCContainer = "Pmc"
+const PMCContainer = "PMC"
 
 func main() {
 	ctx := context.TODO()
@@ -25,7 +25,7 @@ func main() {
 	armClientId := os.Getenv("ARM_CLIENT_ID")
 	armClientSecret := os.Getenv("ARM_CLIENT_SECRET")
 	armTenantId := os.Getenv("ARM_TENANT_ID")
-	kustoEndpoint := os.Getenv("PMC_KUSTO_ENDPOINT")
+	pmcKustoEndpoint := os.Getenv("PMC_KUSTO_ENDPOINT")
 	pmcStartDate := os.Getenv("PMC_START_DATE")
 
 	standardDate := time.Now().UTC().Format(job.TimeFormat)
@@ -77,7 +77,7 @@ func main() {
 			ContainerInitFunc: func() (*azcosmos.ContainerClient, error) {
 				return dbClient.NewContainer(PMCContainer)
 			},
-			KustoEndpoint:   kustoEndpoint,
+			KustoEndpoint:   pmcKustoEndpoint,
 			Logger:          log.New(&logChanWriter{logChan: logChan}, "[PMCWorker]\t", 0),
 			ArmClientId:     armClientId,
 			ArmClientSecret: armClientSecret,

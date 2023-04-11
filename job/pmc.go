@@ -5,12 +5,16 @@ import (
 	"fmt"
 	"log"
 	"regexp"
+	"strings"
 	"time"
 
 	"aztfy-download-counter/database"
 	"aztfy-download-counter/datasource"
+	"github.com/Azure/azure-kusto-go/kusto"
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos"
 )
+
+const startDate = "2022-10-21"
 
 type PMCWorker struct {
 	ContainerInitFunc func() (*azcosmos.ContainerClient, error)
@@ -34,7 +38,13 @@ func (w PMCWorker) Run(ctx context.Context) {
 		w.Logger.Println(fmt.Errorf("auth kusto failed, skipped: %v", err))
 		return
 	}
-	defer kustoClient.Close()
+	defer func(kustoClient *kusto.Client) {
+		err := kustoClient.Close()
+		if err != nil {
+			w.Logger.Println(err)
+			return
+		}
+	}(kustoClient)
 
 	datetime, err := time.Parse(TimeFormat, w.Date)
 	if err != nil {
@@ -70,6 +80,18 @@ func (w PMCWorker) Run(ctx context.Context) {
 		result[version][arch].TodayCount++
 	}
 
+	// calculate totalCount
+	for _, m := range result {
+		for arch, item := range m {
+			prevTotalCount, err := w.getPrevTotalCount(ctx, container, kustoClient, arch, item.Ver)
+			if err != nil {
+				w.Logger.Println(fmt.Errorf("getting prevTotalCount failed, skipped: %v", err))
+				continue
+			}
+			item.TotalCount = prevTotalCount + int64(item.TodayCount)
+		}
+	}
+
 	// [arch]PMCVersion
 	dbObjMap := make(map[string][]database.PMCVersion)
 	for _, m := range result {
@@ -88,6 +110,32 @@ func (w PMCWorker) Run(ctx context.Context) {
 	}
 
 	w.Logger.Println("done")
+}
+
+func (w PMCWorker) getPrevTotalCount(ctx context.Context, container *azcosmos.ContainerClient, kustoClient *kusto.Client, arch string, version string) (int64, error) {
+	d, err := time.Parse(TimeFormat, w.Date)
+	if err != nil {
+		return 0, err
+	}
+	itemId := w.newPMCItemId(d.AddDate(0, 0, -1).Format(TimeFormat), arch, version)
+
+	prevObj := database.PMCVersion{}
+	err = database.ReadItem(ctx, container, arch, itemId, &prevObj)
+	if err != nil {
+		if !strings.Contains(err.Error(), "NotFound") {
+			return 0, err
+		}
+		w.Logger.Printf("there is no data with id %s, query from pmc data base", itemId)
+		s, _ := time.Parse(TimeFormat, startDate)
+		cnt, err := datasource.QueryTotalCount(ctx, kustoClient, s, d, version, arch)
+		if err != nil {
+			w.Logger.Println(err)
+			return 0, err
+		}
+		return cnt, nil
+	}
+
+	return prevObj.TotalCount, nil
 }
 
 func (w PMCWorker) parseTagNameForRPM(tagName string) (version string, arch string, err error) {

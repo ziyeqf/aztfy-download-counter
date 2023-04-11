@@ -18,7 +18,7 @@ const (
 	OneYearSpan    homebrewcaculator.Span = 365
 )
 
-const IndexStartDate = "2023-04-03"
+const IndexStartDate = "2023-04-11"
 const TimeFormat = "2006-01-02"
 
 type homebrewDBClient struct {
