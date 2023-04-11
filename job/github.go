@@ -52,9 +52,6 @@ func (w GithubWorker) Run(ctx context.Context) {
 	}
 
 	for osType, array := range osTypeMap {
-		for _, item := range array {
-			w.Logger.Println("update github data to db: ", item)
-		}
 		err = database.BatchUpsert(ctx, container, osType, array)
 		if err != nil {
 			w.Logger.Println(err)
