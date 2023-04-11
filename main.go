@@ -16,7 +16,7 @@ import (
 const DBName = "aztfystatistics"
 const HBContainer = "Homebrew"
 const GHContainer = "Github"
-const PMCContainer = "PMC"
+const PMCContainer = "newPMC" // the old one has some issue when ingest to kusto so create a new table..
 
 func main() {
 	ctx := context.TODO()
