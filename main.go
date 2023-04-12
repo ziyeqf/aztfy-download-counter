@@ -13,10 +13,10 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos"
 )
 
-const DBName = "aztfystatistics"
+const DBName = "aztfy"
 const HBContainer = "Homebrew"
 const GHContainer = "Github"
-const PMCContainer = "newPMC" // the old one has some issue when ingest to kusto so create a new table..
+const PMCContainer = "PMC"
 
 func main() {
 	ctx := context.TODO()
