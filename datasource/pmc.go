@@ -39,7 +39,7 @@ func queryCmdAztfy(date time.Time) kusto.Stmt {
     and path contains "rpm"
     and method == "GET"
     and code == "200"
-    and (PreciseTimeStamp >= targetDate and PreciseTimeStamp <= datetime_add('day', 1, targetDate))`).MustDefinitions(kusto.NewDefinitions().Must(defMap)).MustParameters(kusto.NewParameters().Must(paramMap))
+    and (PreciseTimeStamp >= targetDate and PreciseTimeStamp <= datetime_add('day', -1, targetDate))`).MustDefinitions(kusto.NewDefinitions().Must(defMap)).MustParameters(kusto.NewParameters().Must(paramMap))
 }
 
 func queryCmdAztfexport(date time.Time) kusto.Stmt {
@@ -55,7 +55,7 @@ func queryCmdAztfexport(date time.Time) kusto.Stmt {
     and path contains "rpm"
     and method == "GET"
     and code == "200"
-    and (PreciseTimeStamp >= targetDate and PreciseTimeStamp <= datetime_add('day', 1, targetDate))`).MustDefinitions(kusto.NewDefinitions().Must(defMap)).MustParameters(kusto.NewParameters().Must(paramMap))
+    and (PreciseTimeStamp >= targetDate and PreciseTimeStamp <= datetime_add('day', -1, targetDate))`).MustDefinitions(kusto.NewDefinitions().Must(defMap)).MustParameters(kusto.NewParameters().Must(paramMap))
 }
 
 func queryCmdForTotalCountAztfexport(startDate, endDate time.Time, arch, version string) kusto.Stmt {
