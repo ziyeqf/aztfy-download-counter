@@ -33,6 +33,7 @@ func (w PMCWorker) Run(ctx context.Context) {
 		return
 	}
 
+	w.Logger.Println("work on " + w.Date)
 	kustoClient, err := datasource.AuthKusto(w.ArmClientId, w.ArmClientSecret, w.ArmTenantId, w.KustoEndpoint)
 	if err != nil {
 		w.Logger.Println(fmt.Errorf("auth kusto failed, skipped: %v", err))
@@ -96,6 +97,7 @@ func (w PMCWorker) Run(ctx context.Context) {
 	dbObjMap := make(map[string][]database.PMCVersion)
 	for _, m := range result {
 		for arch, item := range m {
+			w.Logger.Println("pmc data: ", *item)
 			dbObjMap[arch] = append(dbObjMap[arch], *item)
 		}
 	}
