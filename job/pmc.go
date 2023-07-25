@@ -84,7 +84,19 @@ func (w PMCWorker) Run(ctx context.Context) {
 	// a certain version-arch might not be downloaded in a day, but then downloaded the next day.
 	// to keep the data continues and avoid big query on pmc table, we use the previous day's data as a patch.
 	// so the version-arch combination of today is always more or equal to the previous day.
-	prevResp, err := datasource.QueryForPMC(ctx, kustoClient, datetime.AddDate(0, 0, -1))
+	// while consider it's a cosmos db which is not easy to read the data we insert yesterday,
+	// we just query the data from kusto till we can get some data.
+	// todo: it's not a good solution, very bad idea actually.
+	var prevResp []datasource.KustoResponse
+	prevDate := datetime
+	for prevResp == nil {
+		prevDate = prevDate.AddDate(0, 0, -1)
+		prevResp, err = datasource.QueryForPMC(ctx, kustoClient, prevDate)
+		if err != nil {
+			w.Logger.Println(err)
+		}
+	}
+
 	for _, item := range prevResp {
 		version, arch, err := w.parseTagNameForRPM(item.Path)
 		if err != nil {
