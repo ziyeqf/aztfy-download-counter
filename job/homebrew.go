@@ -8,14 +8,14 @@ import (
 
 	"aztfy-download-counter/database"
 	"aztfy-download-counter/datasource"
-	"aztfy-download-counter/homebrewcaculator"
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos"
+	"github.com/ziyeqf/homebrewcalculator"
 )
 
 const (
-	ThirtyDaysSpan homebrewcaculator.Span = 30
-	NinetyDaysSpan homebrewcaculator.Span = 90
-	OneYearSpan    homebrewcaculator.Span = 365
+	ThirtyDaysSpan homebrewcalculator.Span = 30
+	NinetyDaysSpan homebrewcalculator.Span = 90
+	OneYearSpan    homebrewcalculator.Span = 365
 )
 
 const IndexStartDate = "2023-04-11"
@@ -26,7 +26,7 @@ type homebrewDBClient struct {
 	Logger            *log.Logger
 	Container         *azcosmos.ContainerClient
 	OsType            database.OsType
-	cache             map[int]homebrewcaculator.CountInfo
+	cache             map[int]homebrewcalculator.CountInfo
 }
 
 func newHomebrewDBClient(container *azcosmos.ContainerClient, osType database.OsType, logger *log.Logger) homebrewDBClient {
@@ -34,15 +34,15 @@ func newHomebrewDBClient(container *azcosmos.ContainerClient, osType database.Os
 		Logger:    logger,
 		Container: container,
 		OsType:    osType,
-		cache:     make(map[int]homebrewcaculator.CountInfo),
+		cache:     make(map[int]homebrewcalculator.CountInfo),
 	}
 }
 
-func (h homebrewDBClient) Get(ctx context.Context, idx int) (homebrewcaculator.CountInfo, error) {
+func (h homebrewDBClient) Get(ctx context.Context, idx int) (homebrewcalculator.CountInfo, error) {
 	if idx < 0 {
-		return homebrewcaculator.CountInfo{
+		return homebrewcalculator.CountInfo{
 			Count: 0,
-			TotalCounts: map[homebrewcaculator.Span]int{
+			TotalCounts: map[homebrewcalculator.Span]int{
 				ThirtyDaysSpan: 0,
 				NinetyDaysSpan: 0,
 				OneYearSpan:    0,
@@ -55,9 +55,9 @@ func (h homebrewDBClient) Get(ctx context.Context, idx int) (homebrewcaculator.C
 	}
 
 	date := idx2DateStr(idx)
-	result := homebrewcaculator.CountInfo{
+	result := homebrewcalculator.CountInfo{
 		Count:       -1,
-		TotalCounts: make(map[homebrewcaculator.Span]int),
+		TotalCounts: make(map[homebrewcalculator.Span]int),
 	}
 
 	resp, err := database.QueryItem(ctx, h.Container, string(h.OsType), date, database.HomebrewVersion{})
@@ -72,7 +72,7 @@ func (h homebrewDBClient) Get(ctx context.Context, idx int) (homebrewcaculator.C
 	// the unmarshal func will give them default values.
 	// so we use `APIFailure` to determine if its Span data exists.
 	if !resp[0].ApiFailure {
-		result.TotalCounts = map[homebrewcaculator.Span]int{
+		result.TotalCounts = map[homebrewcalculator.Span]int{
 			ThirtyDaysSpan: resp[0].ThirtyDayCount,
 			NinetyDaysSpan: resp[0].NinetyDayCount,
 			OneYearSpan:    resp[0].OneYearCount,
@@ -81,7 +81,7 @@ func (h homebrewDBClient) Get(ctx context.Context, idx int) (homebrewcaculator.C
 	return result, nil
 }
 
-func (h homebrewDBClient) Set(ctx context.Context, idx int, data homebrewcaculator.CountInfo) error {
+func (h homebrewDBClient) Set(ctx context.Context, idx int, data homebrewcalculator.CountInfo) error {
 	dbObjects, err := database.QueryItem(ctx, h.Container, string(h.OsType), idx2DateStr(idx), database.HomebrewVersion{})
 	if err != nil {
 		return err
@@ -163,9 +163,9 @@ func (w HomebrewWorker) Run(ctx context.Context) {
 
 	w.Logger.Println("begin calc")
 	for _, osType := range w.OsTypes {
-		var calcDBClient homebrewcaculator.DatabaseClient = newHomebrewDBClient(container, osType, w.Logger)
+		var calcDBClient homebrewcalculator.DatabaseClient = newHomebrewDBClient(container, osType, w.Logger)
 		calcLogger := log.New(w.Logger.Writer(), w.Logger.Prefix()+"[Calc] ", 0)
-		calculator := homebrewcaculator.NewCalculator([]homebrewcaculator.Span{ThirtyDaysSpan, NinetyDaysSpan, OneYearSpan}, &calcDBClient, calcLogger)
+		calculator := homebrewcalculator.NewCalculator([]homebrewcalculator.Span{ThirtyDaysSpan, NinetyDaysSpan, OneYearSpan}, &calcDBClient, calcLogger)
 		err := calculator.Calc(ctx, dateStr2Idx(w.Date))
 		if err != nil {
 			w.Logger.Println(err)

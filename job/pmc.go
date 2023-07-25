@@ -81,6 +81,41 @@ func (w PMCWorker) Run(ctx context.Context) {
 		result[version][arch].TodayCount++
 	}
 
+	// a certain version-arch might not be downloaded in a day, but then downloaded the next day.
+	// to keep the data continues and avoid big query on pmc table, we use the previous day's data as a patch.
+	// so the version-arch combination of today is always more or equal to the previous day.
+	// while consider it's a cosmos db which is not easy to read the data we insert yesterday,
+	// we just query the data from kusto till we can get some data (or in 10 days in case there is a new version released).
+	// todo: it's not a good solution, very bad idea, actually.
+	var prevResp []datasource.KustoResponse
+	prevDate := datetime
+	for i := 0; prevResp == nil && i < 10; i++ {
+		prevDate = prevDate.AddDate(0, 0, -1)
+		prevResp, err = datasource.QueryForPMC(ctx, kustoClient, prevDate)
+		if err != nil {
+			w.Logger.Println(err)
+		}
+	}
+
+	for _, item := range prevResp {
+		version, arch, err := w.parseTagNameForRPM(item.Path)
+		if err != nil {
+			w.Logger.Printf("parseTagNameForRPM path: %v, error: %+v\r", item.Path, err)
+		}
+		if _, ok := result[version]; !ok {
+			result[version] = make(map[string]*database.PMCVersion)
+		}
+		if _, ok := result[version][arch]; !ok {
+			result[version][arch] = &database.PMCVersion{
+				Id:         w.newPMCItemId(w.Date, arch, version),
+				Date:       w.Date,
+				Ver:        version,
+				Arch:       arch,
+				TodayCount: 0,
+			}
+		}
+	}
+
 	// calculate totalCount
 	for _, m := range result {
 		for arch, item := range m {
@@ -127,8 +162,11 @@ func (w PMCWorker) getPrevTotalCount(ctx context.Context, container *azcosmos.Co
 		if !strings.Contains(err.Error(), "NotFound") {
 			return 0, err
 		}
+		// it costs a really long time and always get timed out to query such big data.
 		w.Logger.Printf("there is no data with id %s, query from pmc data base", itemId)
-		s, _ := time.Parse(TimeFormat, startDate)
+		// as the data in cosmos has been guraranteed to be continues,
+		// we just limit the start date to 10 days to avoid big query.
+		s, _ := time.Parse(TimeFormat, d.AddDate(0, 0, -10).Format(TimeFormat))
 		cnt, err := datasource.QueryTotalCount(ctx, kustoClient, s, d, version, arch)
 		if err != nil {
 			w.Logger.Println(err)
@@ -141,12 +179,15 @@ func (w PMCWorker) getPrevTotalCount(ctx context.Context, container *azcosmos.Co
 }
 
 func (w PMCWorker) parseTagNameForRPM(tagName string) (version string, arch string, err error) {
-	reg := regexp.MustCompile(`.*-(\d*\.\d*\.\d*)(-1-){0,1}(.+)\.rpm`)
+	reg := regexp.MustCompile(`.*-(\d*\.\d*\.\d*)(-1-)?(-1.)?(.+)\.rpm`)
 	result := reg.FindStringSubmatch(tagName)
-	if len(result) != 4 {
+	if len(result) != 4 && len(result) != 5 {
 		return "", "", fmt.Errorf("parse failed")
 	}
-	return result[1], result[3], nil
+	if len(result) == 4 {
+		return result[1], result[3], nil
+	}
+	return result[1], result[4], nil
 }
 
 func (w PMCWorker) newPMCItemId(date string, arch string, version string) string {

@@ -3,7 +3,7 @@ schedules:
   displayName: Daily Run
   branches:
     include:
-    - main
+      - main
   always: true
 pool:
   vmImage: ubuntu-latest
