@@ -164,7 +164,9 @@ func (w PMCWorker) getPrevTotalCount(ctx context.Context, container *azcosmos.Co
 		}
 		// it costs a really long time and always get timed out to query such big data.
 		w.Logger.Printf("there is no data with id %s, query from pmc data base", itemId)
-		s, _ := time.Parse(TimeFormat, startDate)
+		// as the data in cosmos has been guraranteed to be continues,
+		// we just limit the start date to 10 days to avoid big query.
+		s, _ := time.Parse(TimeFormat, d.AddDate(0, 0, -10).Format(TimeFormat))
 		cnt, err := datasource.QueryTotalCount(ctx, kustoClient, s, d, version, arch)
 		if err != nil {
 			w.Logger.Println(err)
@@ -177,13 +179,15 @@ func (w PMCWorker) getPrevTotalCount(ctx context.Context, container *azcosmos.Co
 }
 
 func (w PMCWorker) parseTagNameForRPM(tagName string) (version string, arch string, err error) {
-	reg := regexp.MustCompile(`.*-(\d*\.\d*\.\d*)(-1-){0,1}(-1.){0,1}(.+)\.rpm`)
+	reg := regexp.MustCompile(`.*-(\d*\.\d*\.\d*)(-1-)?(-1.)?(.+)\.rpm`)
 	result := reg.FindStringSubmatch(tagName)
-	fmt.Printf("origin: %s, version: %s, arch: %s \r\n", tagName, result[1], result[3])
-	if len(result) != 4 {
+	if len(result) != 4 && len(result) != 5 {
 		return "", "", fmt.Errorf("parse failed")
 	}
-	return result[1], result[3], nil
+	if len(result) == 4 {
+		return result[1], result[3], nil
+	}
+	return result[1], result[4], nil
 }
 
 func (w PMCWorker) newPMCItemId(date string, arch string, version string) string {
