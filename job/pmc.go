@@ -86,7 +86,7 @@ func (w PMCWorker) Run(ctx context.Context) {
 	// so the version-arch combination of today is always more or equal to the previous day.
 	// while consider it's a cosmos db which is not easy to read the data we insert yesterday,
 	// we just query the data from kusto till we can get some data (or in 10 days in case there is a new version released).
-	// todo: it's not a good solution, very bad idea actually.
+	// todo: it's not a good solution, very bad idea, actually.
 	var prevResp []datasource.KustoResponse
 	prevDate := datetime
 	for i := 0; prevResp == nil && i < 10; i++ {
