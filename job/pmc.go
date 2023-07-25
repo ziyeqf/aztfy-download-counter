@@ -81,6 +81,29 @@ func (w PMCWorker) Run(ctx context.Context) {
 		result[version][arch].TodayCount++
 	}
 
+	// a certain version-arch might not be downloaded in a day, but then downloaded the next day.
+	// to keep the data continues and avoid big query on pmc table, we use the previous day's data as a patch.
+	// so the version-arch combination of today is always more or equal to the previous day.
+	prevResp, err := datasource.QueryForPMC(ctx, kustoClient, datetime.AddDate(0, 0, -1))
+	for _, item := range prevResp {
+		version, arch, err := w.parseTagNameForRPM(item.Path)
+		if err != nil {
+			w.Logger.Printf("parseTagNameForRPM path: %v, error: %+v\r", item.Path, err)
+		}
+		if _, ok := result[version]; !ok {
+			result[version] = make(map[string]*database.PMCVersion)
+		}
+		if _, ok := result[version][arch]; !ok {
+			result[version][arch] = &database.PMCVersion{
+				Id:         w.newPMCItemId(w.Date, arch, version),
+				Date:       w.Date,
+				Ver:        version,
+				Arch:       arch,
+				TodayCount: 0,
+			}
+		}
+	}
+
 	// calculate totalCount
 	for _, m := range result {
 		for arch, item := range m {
@@ -127,6 +150,7 @@ func (w PMCWorker) getPrevTotalCount(ctx context.Context, container *azcosmos.Co
 		if !strings.Contains(err.Error(), "NotFound") {
 			return 0, err
 		}
+		// it costs a really long time and always get timed out to query such big data.
 		w.Logger.Printf("there is no data with id %s, query from pmc data base", itemId)
 		s, _ := time.Parse(TimeFormat, startDate)
 		cnt, err := datasource.QueryTotalCount(ctx, kustoClient, s, d, version, arch)
