@@ -177,8 +177,9 @@ func (w PMCWorker) getPrevTotalCount(ctx context.Context, container *azcosmos.Co
 }
 
 func (w PMCWorker) parseTagNameForRPM(tagName string) (version string, arch string, err error) {
-	reg := regexp.MustCompile(`.*-(\d*\.\d*\.\d*)(-1-){0,1}(.+)\.rpm`)
+	reg := regexp.MustCompile(`.*-(\d*\.\d*\.\d*)(-1-){0,1}(-1.){0,1}(.+)\.rpm`)
 	result := reg.FindStringSubmatch(tagName)
+	fmt.Printf("origin: %s, version: %s, arch: %s \r\n", tagName, result[1], result[3])
 	if len(result) != 4 {
 		return "", "", fmt.Errorf("parse failed")
 	}
