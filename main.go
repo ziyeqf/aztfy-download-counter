@@ -74,7 +74,7 @@ func main() {
 	d, _ := time.Parse(job.TimeFormat, *pmcStartDate)
 	n, _ := time.Parse(job.TimeFormat, standardDate)
 	cnt := n.Sub(d).Hours() / 24
-	log.Println("PMC Start Date:", pmcStartDate, "Count:", int(cnt)+1)
+	log.Println("PMC Start Date:", *pmcStartDate, "Count:", int(cnt)+1)
 	pmcJobs := []job.Job{}
 	for i := 0; i <= int(cnt); i++ {
 		pmcJobs = append(pmcJobs, job.PMCWorker{
