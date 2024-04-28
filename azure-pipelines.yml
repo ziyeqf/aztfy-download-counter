@@ -45,6 +45,15 @@ steps:
   workingDirectory: '$(modulePath)'
   displayName: 'Get dependencies and build'
 
+- task: AzureCLI@2
+  inputs:
+    azureSubscription: 'aztfy-pmc-reader-conn'
+    scriptType: 'batch'
+    scriptLocation: 'inlineScript'
+    inlineScript: 'az account show'
+    useGlobalConfig: true
+    workingDirectory: '$(modulePath)'
+
 - script: |
     ./aztfy-download-counter
   workingDirectory: '$(modulePath)'
@@ -54,6 +63,3 @@ steps:
     COSMOSDB_KEY: $(COSMOSDB_KEY)
     PMC_KUSTO_ENDPOINT: $(PMC_KUSTO_ENDPOINT)
     PMC_START_DATE: $(PMC_START_DATE)
-    ARM_CLIENT_ID: $(ARM_CLIENT_ID)
-    ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
-    ARM_TENANT_ID: $(ARM_TENANT_ID)
