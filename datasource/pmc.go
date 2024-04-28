@@ -2,12 +2,14 @@ package datasource
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/Azure/azure-kusto-go/kusto"
 	"github.com/Azure/azure-kusto-go/kusto/data/errors"
 	"github.com/Azure/azure-kusto-go/kusto/data/table"
 	"github.com/Azure/azure-kusto-go/kusto/data/types"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 )
 
 const PMCDBName = "Repos"
@@ -21,8 +23,13 @@ type TotalCountResponse struct {
 }
 
 func AuthKusto(endpoint string) (client *kusto.Client, err error) {
+	cred, err := azidentity.NewDefaultAzureCredential(nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create a credential: %+v", err)
+	}
+
 	kustoConnectionStringBuilder := kusto.NewConnectionStringBuilder(endpoint)
-	kustoConnectionString := kustoConnectionStringBuilder.WithDefaultAzureCredential()
+	kustoConnectionString := kustoConnectionStringBuilder.WithTokenCredential(cred)
 	return kusto.New(kustoConnectionString)
 }
 

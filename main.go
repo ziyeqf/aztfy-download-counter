@@ -23,7 +23,6 @@ const PMCContainer = "PMC"
 
 var (
 	cosmosdbEndpoint = flag.String("cosmosdb", "", "the endpoint of cosmosdb, saving the statstic data")
-	cosmosdbKey      = flag.String("cosmoskey", "", "the key of the cosmosdb")
 	pmcKustoEndpoint = flag.String("kusto-endpoint", "", "the end point of PMC kusto")
 	pmcStartDate     = flag.String("pmc-start-date", "", "when the start grabing PMC data")
 )
@@ -35,7 +34,7 @@ func main() {
 
 	standardDate := time.Now().UTC().Format(job.TimeFormat)
 
-	dbClient, err := database.AuthDBClient(*cosmosdbEndpoint, *cosmosdbKey, DBName)
+	dbClient, err := database.AuthDBClient(*cosmosdbEndpoint, DBName)
 	if err != nil {
 		log.Println(fmt.Errorf("init db client error: %+v", err))
 	}

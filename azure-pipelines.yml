@@ -32,5 +32,4 @@ steps:
     scriptType: 'bash'
     scriptLocation: 'inlineScript'
     inlineScript: |
-      ./aztfy-download-counter -cosmosdb=$(COSMOSDB_ENDPOINT) -cosmoskey=$(COSMOSDB_KEY) -kusto-endpoint=$(PMC_KUSTO_ENDPOINT) -pmc-start-date=$(PMC_START_DATE)    
-    useGlobalConfig: true
+      ./aztfy-download-counter -cosmosdb=$(COSMOSDB_ENDPOINT) -kusto-endpoint=$(PMC_KUSTO_ENDPOINT) -pmc-start-date=$(PMC_START_DATE)    

@@ -6,16 +6,17 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos"
 )
 
-func AuthDBClient(endpoint string, key string, dbName string) (*azcosmos.DatabaseClient, error) {
-	cred, err := azcosmos.NewKeyCredential(key)
+func AuthDBClient(endpoint string, dbName string) (*azcosmos.DatabaseClient, error) {
+	cred, err := azidentity.NewDefaultAzureCredential(nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create a credential: %+v", err)
 	}
 
-	client, err := azcosmos.NewClientWithKey(endpoint, cred, nil)
+	client, err := azcosmos.NewClient(endpoint, cred, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Azure Cosmos DB client: %+v", err)
 	}
