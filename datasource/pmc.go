@@ -20,9 +20,9 @@ type TotalCountResponse struct {
 	Count int64 `kusto:"Count"`
 }
 
-func AuthKusto(clientId, clientSecret, tenantId, endpoint string) (client *kusto.Client, err error) {
+func AuthKusto(endpoint string) (client *kusto.Client, err error) {
 	kustoConnectionStringBuilder := kusto.NewConnectionStringBuilder(endpoint)
-	kustoConnectionString := kustoConnectionStringBuilder.WithAadAppKey(clientId, clientSecret, tenantId)
+	kustoConnectionString := kustoConnectionStringBuilder.WithDefaultAzureCredential()
 	return kusto.New(kustoConnectionString)
 }
 

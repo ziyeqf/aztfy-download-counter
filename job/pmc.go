@@ -21,9 +21,6 @@ type PMCWorker struct {
 	Logger            *log.Logger
 	KustoEndpoint     string
 	Date              string
-	ArmClientId       string
-	ArmClientSecret   string
-	ArmTenantId       string
 }
 
 func (w PMCWorker) Run(ctx context.Context) {
@@ -34,7 +31,7 @@ func (w PMCWorker) Run(ctx context.Context) {
 	}
 
 	w.Logger.Println("work on " + w.Date)
-	kustoClient, err := datasource.AuthKusto(w.ArmClientId, w.ArmClientSecret, w.ArmTenantId, w.KustoEndpoint)
+	kustoClient, err := datasource.AuthKusto(w.KustoEndpoint)
 	if err != nil {
 		w.Logger.Println(fmt.Errorf("auth kusto failed, skipped: %v", err))
 		return

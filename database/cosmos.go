@@ -41,7 +41,6 @@ func CreateOrUpdateItem[T DBItem](ctx context.Context, container *azcosmos.Conta
 	}
 
 	_, err = container.UpsertItem(ctx, pk, b, &itemOptions)
-
 	if err != nil {
 		return err
 	}

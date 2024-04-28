@@ -24,9 +24,6 @@ func main() {
 	ctx := context.TODO()
 	cosmosdbEndPoint := os.Getenv("COSMOSDB_ENDPOINT")
 	cosmosdbKey := os.Getenv("COSMOSDB_KEY")
-	armClientId := os.Getenv("ARM_CLIENT_ID")
-	armClientSecret := os.Getenv("ARM_CLIENT_SECRET")
-	armTenantId := os.Getenv("ARM_TENANT_ID")
 	pmcKustoEndpoint := os.Getenv("PMC_KUSTO_ENDPOINT")
 	pmcStartDate := os.Getenv("PMC_START_DATE")
 
@@ -80,11 +77,8 @@ func main() {
 			ContainerInitFunc: func() (*azcosmos.ContainerClient, error) {
 				return dbClient.NewContainer(PMCContainer)
 			},
-			KustoEndpoint:   pmcKustoEndpoint,
-			Logger:          log.New(&logChanWriter{logChan: logChan}, "[PMCWorker]\t", 0),
-			ArmClientId:     armClientId,
-			ArmClientSecret: armClientSecret,
-			ArmTenantId:     armTenantId,
+			KustoEndpoint: pmcKustoEndpoint,
+			Logger:        log.New(&logChanWriter{logChan: logChan}, "[PMCWorker]\t", 0),
 		})
 	}
 
