@@ -26,19 +26,11 @@ steps:
   displayName: 'Get dependencies and build'
 
 - task: AzureCLI@2
+  displayName: 'Get data and upload'
   inputs:
     azureSubscription: 'aztfy-pmc-reader-conn'
     scriptType: 'bash'
     scriptLocation: 'inlineScript'
     inlineScript: |
-      ./aztfy-download-counter
+      ./aztfy-download-counter -cosmosdb=$(COSMOSDB_ENDPOINT) -cosmoskey=$(COSMOSDB_KEY) -kusto-endpoint=$(PMC_KUSTO_ENDPOINT) -pmc-start-date=$(PMC_START_DATE)    
     useGlobalConfig: true
-
-- script: |
-    ./aztfy-download-counter
-  displayName: 'Get data and upload'
-  env:  
-    COSMOSDB_ENDPOINT: $(COSMOSDB_ENDPOINT)
-    COSMOSDB_KEY: $(COSMOSDB_KEY)
-    PMC_KUSTO_ENDPOINT: $(PMC_KUSTO_ENDPOINT)
-    PMC_START_DATE: $(PMC_START_DATE)

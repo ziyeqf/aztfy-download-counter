@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
-	"os"
 	"sync"
 	"time"
 
@@ -12,6 +12,7 @@ import (
 	"aztfy-download-counter/datasource"
 	"aztfy-download-counter/job"
 	"aztfy-download-counter/job/githubutils"
+
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos"
 )
 
@@ -20,16 +21,21 @@ const HBContainer = "Homebrew"
 const GHContainer = "Github"
 const PMCContainer = "PMC"
 
+var (
+	cosmosdbEndpoint = flag.String("cosmosdb", "", "the endpoint of cosmosdb, saving the statstic data")
+	cosmosdbKey      = flag.String("cosmoskey", "", "the key of the cosmosdb")
+	pmcKustoEndpoint = flag.String("kusto-endpoint", "", "the end point of PMC kusto")
+	pmcStartDate     = flag.String("pmc-start-date", "", "when the start grabing PMC data")
+)
+
 func main() {
+	flag.Parse()
+
 	ctx := context.TODO()
-	cosmosdbEndPoint := os.Getenv("COSMOSDB_ENDPOINT")
-	cosmosdbKey := os.Getenv("COSMOSDB_KEY")
-	pmcKustoEndpoint := os.Getenv("PMC_KUSTO_ENDPOINT")
-	pmcStartDate := os.Getenv("PMC_START_DATE")
 
 	standardDate := time.Now().UTC().Format(job.TimeFormat)
 
-	dbClient, err := database.AuthDBClient(cosmosdbEndPoint, cosmosdbKey, DBName)
+	dbClient, err := database.AuthDBClient(*cosmosdbEndpoint, *cosmosdbKey, DBName)
 	if err != nil {
 		log.Println(fmt.Errorf("init db client error: %+v", err))
 	}
@@ -62,11 +68,11 @@ func main() {
 		},
 	}
 
-	if len(pmcStartDate) == 0 {
-		pmcStartDate = standardDate
+	if len(*pmcStartDate) == 0 {
+		pmcStartDate = &standardDate
 	}
 
-	d, _ := time.Parse(job.TimeFormat, pmcStartDate)
+	d, _ := time.Parse(job.TimeFormat, *pmcStartDate)
 	n, _ := time.Parse(job.TimeFormat, standardDate)
 	cnt := n.Sub(d).Hours() / 24
 	log.Println("PMC Start Date:", pmcStartDate, "Count:", int(cnt)+1)
@@ -77,7 +83,7 @@ func main() {
 			ContainerInitFunc: func() (*azcosmos.ContainerClient, error) {
 				return dbClient.NewContainer(PMCContainer)
 			},
-			KustoEndpoint: pmcKustoEndpoint,
+			KustoEndpoint: *pmcKustoEndpoint,
 			Logger:        log.New(&logChanWriter{logChan: logChan}, "[PMCWorker]\t", 0),
 		})
 	}
