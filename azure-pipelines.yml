@@ -8,6 +8,11 @@ schedules:
 pool:
   vmImage: ubuntu-latest
 
+variables:
+  GOBIN:  '$(GOPATH)/bin' # Go binaries path
+  GOROOT: '/usr/local/go' # Go installation path
+  GOPATH: '$(system.defaultWorkingDirectory)/gopath' # Go workspace path
+
 steps:
 - task: GoTool@0
   displayName: "install Go"
