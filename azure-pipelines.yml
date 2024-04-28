@@ -35,7 +35,6 @@ steps:
 
 - script: |
     ./aztfy-download-counter
-  workingDirectory: '$(modulePath)'
   displayName: 'Get data and upload'
   env:  
     COSMOSDB_ENDPOINT: $(COSMOSDB_ENDPOINT)
