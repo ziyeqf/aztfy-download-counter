@@ -30,7 +30,8 @@ steps:
     azureSubscription: 'aztfy-pmc-reader-conn'
     scriptType: 'bash'
     scriptLocation: 'inlineScript'
-    inlineScript: 'az account show'
+    inlineScript: |
+      ./aztfy-download-counter
     useGlobalConfig: true
 
 - script: |
